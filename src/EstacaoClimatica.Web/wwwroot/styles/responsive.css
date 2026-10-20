@@ -1,0 +1,521 @@
+/* =====================================================================
+   Responsive
+   ===================================================================== */
+@media (max-width: 640px) {
+    .app-body { padding: 0 0.85rem calc(5rem + env(safe-area-inset-bottom)); }
+
+    .header-inner {
+        padding: 0 1rem;
+        gap: 0;
+        justify-content: stretch;
+    }
+
+    .header-brand {
+        display: none;
+    }
+
+    .header-status {
+        --header-status-chip-width: auto;
+        --header-status-chip-height: 44px;
+        width: 100%;
+        flex: 1 1 auto;
+        justify-content: space-between;
+        gap: 5px;
+    }
+
+    .aqi-indicator {
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: none;
+        padding: 0 7px;
+        gap: 4px;
+    }
+
+    .aqi-indicator__prefix {
+        position: absolute;
+        z-index: 2;
+        top: 7px;
+        left: 7px;
+        display: block;
+        color: #e2e8f0;
+        font-size: 0.55rem;
+        font-weight: 850;
+        line-height: 1;
+    }
+
+    .aqi-indicator__value {
+        position: absolute;
+        z-index: 2;
+        top: 4px;
+        right: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 25px;
+        min-height: 17px;
+        padding: 0 4px;
+        border: 1px solid color-mix(in srgb, var(--aqi-color), transparent 48%);
+        border-radius: 999px;
+        background: rgba(8, 15, 30, 0.88);
+        color: #f8fafc;
+        box-shadow: 0 2px 8px rgba(2, 6, 23, 0.38);
+        font-size: 0.72rem;
+        font-weight: 850;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+
+    .aqi-indicator__status {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    .aqi-popover {
+        right: 0;
+    }
+
+    .season-indicator {
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: none;
+        padding: 0 7px;
+        gap: 4px;
+    }
+
+    .season-indicator__scene {
+        width: 30px;
+        height: 22px;
+    }
+
+    .season-indicator__value {
+        display: none;
+    }
+
+    .season-header-popover {
+        right: 0;
+    }
+
+    .astro-popover {
+        right: 0;
+    }
+
+    .moon-indicator {
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: none;
+        padding: 0 7px;
+        gap: 4px;
+    }
+
+    .moon-indicator__scene {
+        width: 26px;
+        height: 26px;
+    }
+
+    .moon-indicator__value {
+        display: none;
+    }
+
+    .moon-popover {
+        right: 0;
+    }
+
+    .astro-indicator {
+        flex: 1 1 0;
+        min-width: 0;
+        width: auto;
+        height: var(--header-status-chip-height);
+    }
+
+    .astro-indicator__track {
+        left: 10px;
+        right: 10px;
+        bottom: 4px;
+        height: 28px;
+    }
+
+    .astro-indicator__orb {
+        width: 13px;
+        height: 13px;
+    }
+
+    .header-time {
+        display: none;
+    }
+
+    .tab-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 0.65rem;
+        padding-top: 12px;
+    }
+
+    .tab-toolbar::after {
+        bottom: -1px;
+        top: auto;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.26), rgba(148, 163, 184, 0.12), transparent);
+    }
+
+    .tab-nav {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        width: 100%;
+        gap: 4px;
+        padding: 3px;
+        border: 1px solid var(--border);
+        border-bottom-color: rgba(56, 189, 248, 0.24);
+        border-radius: 18px 18px 0 0;
+        background:
+            linear-gradient(180deg, rgba(30, 41, 59, 0.46), rgba(15, 23, 42, 0.34)),
+            rgba(15, 23, 42, 0.45);
+        overflow: visible;
+    }
+
+    .tablink {
+        justify-content: center;
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        padding: 9px 3px;
+        gap: 5px;
+        font-size: 0.76rem;
+        border-color: rgba(148, 163, 184, 0.10);
+        border-bottom-width: 0;
+        border-radius: 12px 12px 0 0;
+        overflow: visible;
+    }
+
+    .tablink svg {
+        display: block;
+        width: 14px;
+        height: 14px;
+    }
+
+    .tablink.active {
+        border-color: rgba(56, 189, 248, 0.58);
+        background:
+            linear-gradient(180deg, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0.11) 68%, rgba(56, 189, 248, 0.05)),
+            rgba(15, 23, 42, 0.88);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.07),
+            0 6px 14px rgba(56, 189, 248, 0.08);
+    }
+
+    .tablink.active::before {
+        left: 6px;
+        right: 6px;
+        bottom: -7px;
+        height: 7px;
+        opacity: 1;
+        background: linear-gradient(180deg, rgba(56, 189, 248, 0.18), transparent);
+    }
+
+    .tablink.active::after {
+        left: 14px;
+        right: 14px;
+        bottom: -1px;
+        height: 3px;
+        opacity: 1;
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .toolbar {
+        width: 100%;
+        padding-bottom: 12px;
+    }
+
+    .toolbar-group {
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) clamp(136px, 38vw, 148px);
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .toolbar-label {
+        grid-column: 1 / -1;
+        font-size: 0.76rem;
+    }
+
+    .date-picker {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+    }
+
+    .toolbar-button {
+        width: 100%;
+        min-width: 0;
+        padding-inline: 0.65rem;
+        white-space: nowrap;
+        min-height: 44px;
+    }
+
+    .export-format-toggle,
+    .toolbar-button--export {
+        width: 100%;
+    }
+
+    .export-format-toggle {
+        grid-column: 1;
+    }
+
+    .export-format-toggle label { min-height: 44px; }
+
+    .toolbar-button--export {
+        grid-column: 2;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .public-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #statsEstacao { min-height: 0; }
+
+    .season-timeline__segment {
+        font-size: 0.62rem;
+    }
+
+    .station-context-row {
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
+    }
+
+    .moon-summary {
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    .moon-summary__scene {
+        width: 32px;
+        height: 32px;
+    }
+
+    .moon-summary__content {
+        min-width: 0;
+    }
+
+    .moon-summary__details {
+        grid-template-columns: 1fr;
+        gap: 0.28rem;
+        margin-left: auto;
+    }
+
+    .moon-summary__details div:first-child {
+        display: none;
+    }
+
+    .advanced-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hourly-heatmap {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .plot { height: 200px !important; }
+
+    #plotRain,
+    #publicChartRain { height: 200px !important; }
+
+    .chart-card--wide .plot {
+        height: 220px !important;
+    }
+
+    .chart-zoom-button {
+        width: 44px;
+        height: 44px;
+        top: 8px;
+        right: 8px;
+    }
+
+    .plot-zoom-overlay {
+        padding: 0.5rem;
+        align-items: center;
+    }
+
+    .plot-zoom-overlay .chart-card {
+        width: 100%;
+        max-height: calc(100vh - 1rem);
+        padding: 0.85rem;
+    }
+
+    .plot-zoom-close {
+        top: 8px;
+        right: 8px;
+        width: 44px;
+        height: 44px;
+    }
+
+    .plot-zoom-overlay .plot {
+        height: min(70vh, 520px) !important;
+    }
+
+    .table-wrapper th,
+    .table-wrapper td { padding: 9px 11px; font-size: 0.78rem; }
+
+    .ai-chat {
+        right: 12px;
+        bottom: 12px;
+    }
+
+    .ai-chat__toggle {
+        width: 48px;
+        height: 48px;
+        min-height: 48px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 999px;
+    }
+
+    .ai-chat__toggle > span:last-child { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    .ai-chat__panel {
+        right: -4px;
+        bottom: 52px;
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 100px);
+    }
+
+    .ai-chat__quick-actions {
+        grid-template-columns: 1fr 1fr;
+        padding-inline: 12px;
+    }
+
+    .ai-chat__quick-actions button {
+        font-size: 0.74rem;
+    }
+
+    .ai-chat__messages {
+        min-height: 190px;
+    }
+
+    .ai-chat__form {
+        align-items: stretch;
+    }
+}
+
+@media (min-width: 360px) and (max-width: 640px) {
+    #statsEstacao { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 641px) and (max-width: 960px) {
+    .app-body { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+    .tab-toolbar { align-items: stretch; flex-direction: column; gap: 0.65rem; }
+    .tab-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; overflow: visible; }
+    .tablink { justify-content: center; width: 100%; min-width: 0; min-height: 44px; }
+    .toolbar { width: 100%; }
+    .toolbar-group { width: 100%; justify-content: flex-end; }
+    .date-picker, .toolbar-button, .export-format-toggle label { min-height: 44px; }
+    .ai-chat__toggle { width: 48px; height: 48px; min-height: 48px; padding: 0; justify-content: center; border-radius: 999px; }
+    .ai-chat__toggle > span:last-child { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+@media (max-width: 640px) {
+    .auth-logout-button { flex: 0 0 auto; min-width: 46px; padding: 0 9px; font-size: 0.76rem; }
+}
+
+/* Celulares em paisagem podem ter largura maior que o breakpoint mobile,
+   mas ainda nao comportam abas e controles na mesma linha. */
+@media (orientation: landscape) and (max-height: 540px) and (max-width: 900px) {
+    .app-body { padding: 0 0.85rem 1.5rem; }
+
+    .tab-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding-top: 10px;
+    }
+
+    .tab-nav {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        width: 100%;
+        gap: 4px;
+        padding: 3px;
+        border: 1px solid var(--border);
+        border-bottom-color: rgba(56, 189, 248, 0.24);
+        border-radius: 16px 16px 0 0;
+    }
+
+    .tablink {
+        justify-content: center;
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        padding: 7px 3px;
+        font-size: 0.74rem;
+        gap: 5px;
+        border-color: rgba(148, 163, 184, 0.10);
+        border-bottom-width: 0;
+        border-radius: 10px 10px 0 0;
+    }
+
+    .tablink.active::before {
+        left: 6px;
+        right: 6px;
+        bottom: -6px;
+        height: 6px;
+    }
+
+    .tablink.active::after {
+        left: 14px;
+        right: 14px;
+        height: 3px;
+    }
+
+    .toolbar {
+        width: 100%;
+        padding-bottom: 8px;
+    }
+
+    .toolbar-group {
+        width: 100%;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        gap: 0.4rem;
+        padding: 0.4rem;
+    }
+
+    .toolbar-label {
+        margin-right: auto;
+        font-size: 0.72rem;
+    }
+
+    .date-picker {
+        width: 146px;
+        min-width: 0;
+        padding-inline: 0.55rem;
+    }
+
+    .toolbar-button {
+        width: auto;
+        min-width: 0;
+        padding-inline: 0.65rem;
+        white-space: nowrap;
+    }
+
+    .toolbar-button--export {
+        width: 124px;
+        flex: 0 0 124px;
+    }
+
+    .export-format-toggle label {
+        min-width: 39px;
+        padding-inline: 7px;
+    }
+}

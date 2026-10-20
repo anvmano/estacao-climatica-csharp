@@ -1,0 +1,360 @@
+/* =====================================================================
+   Stats
+   ===================================================================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+#statsEstacao {
+    min-height: 118px;
+}
+
+.stats-card {
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.035), transparent 42%),
+        var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.95rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.24);
+}
+
+.stats-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card__label {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.stats-card__trend {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+}
+
+.stats-card__trend--up {
+    color: #34d399;
+}
+
+.stats-card__trend--down {
+    color: #fb7185;
+}
+
+.stats-card__trend--stable {
+    color: #94a3b8;
+}
+
+.stats-card__value {
+    display: block;
+    color: var(--text-primary);
+    font-size: 1.48rem;
+    font-weight: 750;
+    line-height: 1.1;
+    margin-bottom: 0.78rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.stats-card__details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.65rem;
+    margin: 0;
+}
+
+.stats-card__details div {
+    min-width: 0;
+}
+
+.stats-card__details dt {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.stats-card__details dd {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.80rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.station-summary-card {
+    min-width: 0;
+}
+
+.stats-card__trend--insufficient, .stats-card__trend--suspicious { color: #fbbf24; }
+.stats-card__trend--critical { color: #fb7185; }
+.stats-card__quality { margin: 0.7rem 0 0; padding-top: 0.55rem; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 0.75rem; font-weight: 650; line-height: 1.35; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.5rem; }
+.stats-card__quality strong { color: currentColor; }
+.stats-card__quality span:last-child { grid-column: 1 / -1; }
+.stats-card__quality--critica { color: #fb7185; }
+.stats-card__quality--suspeita, .stats-card__quality--incompleta, .stats-card__quality--desatualizada { color: #fbbf24; }
+.stats-card__quality--adequada { color: #34d399; }
+.stats-card__quality--sem_dados { color: var(--text-muted); }
+
+.station-summary-card--placeholder {
+    min-height: 118px;
+    background:
+        linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.08), transparent),
+        rgba(26, 34, 52, 0.58);
+    background-size: 220px 100%, auto;
+    animation: station-placeholder-sheen 1.4s ease-in-out infinite;
+}
+
+@keyframes station-placeholder-sheen {
+    0% {
+        background-position: -220px 0, 0 0;
+    }
+
+    100% {
+        background-position: calc(100% + 220px) 0, 0 0;
+    }
+}
+
+.station-summary-card .stats-card__header {
+    align-items: flex-start;
+}
+
+.station-summary-card .stats-card__label {
+    max-width: 58%;
+    overflow-wrap: anywhere;
+}
+
+.station-summary-card .stats-card__trend {
+    max-width: 42%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.station-summary-card .stats-card__value {
+    margin-bottom: 0.55rem;
+}
+
+.station-summary-card__meta {
+    display: grid;
+    gap: 0.2rem;
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1.25;
+    min-width: 0;
+}
+
+.station-summary-card__meta span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.station-summary-card__meta span:first-child {
+    color: var(--text-primary);
+}
+
+.station-context-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.season-timeline {
+    position: relative;
+    margin: 0;
+    padding: 0.85rem 0.95rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.24);
+}
+
+.season-timeline__track {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    min-height: 34px;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: var(--radius-sm);
+    background:
+        linear-gradient(
+            90deg,
+            rgba(251, 191, 36, 0.30) 0%,
+            rgba(251, 146, 60, 0.28) 24%,
+            rgba(194, 123, 84, 0.24) 36%,
+            rgba(56, 189, 248, 0.24) 50%,
+            rgba(67, 177, 198, 0.23) 62%,
+            rgba(52, 211, 153, 0.27) 76%,
+            rgba(45, 212, 191, 0.22) 100%
+        ),
+        rgba(15, 23, 42, 0.52);
+}
+
+.season-timeline__segment {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    color: rgba(241, 245, 249, 0.82);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.season-timeline__segment i {
+    position: relative;
+    z-index: 1;
+    font-style: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.season-timeline__segment::before {
+    content: "";
+    position: absolute;
+    top: 7px;
+    bottom: 7px;
+    left: 0;
+    width: 1px;
+    background: rgba(241, 245, 249, 0.12);
+}
+
+.season-timeline__segment:first-child::before {
+    display: none;
+}
+
+.season-timeline__marker {
+    position: absolute;
+    z-index: 2;
+    top: 3px;
+    bottom: 3px;
+    width: 4px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16), 0 0 14px rgba(56, 189, 248, 0.38);
+}
+
+.moon-summary {
+    --moon-shadow: 50%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0.85rem 0.95rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.24);
+}
+
+.moon-summary__scene {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+}
+
+.moon-summary__orb {
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #f8fafc 0 16%, #c4b5fd 17% 100%);
+    box-shadow: 0 0 18px rgba(196, 181, 253, 0.26);
+    overflow: hidden;
+}
+
+.moon-summary__orb::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    right: -1px;
+    width: var(--moon-shadow);
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.88);
+}
+
+.moon-summary__content {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.moon-summary__content span {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.moon-summary__content strong {
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.moon-summary__details {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.28rem;
+    margin: 0 0 0 auto;
+}
+
+.moon-summary__details div {
+    display: grid;
+    grid-template-columns: max-content minmax(74px, max-content);
+    align-items: baseline;
+    justify-content: end;
+    column-gap: 0.45rem;
+}
+
+.moon-summary__details dt {
+    color: var(--text-secondary);
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: right;
+}
+
+.moon-summary__details dd {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.moon-summary__details div:first-child {
+    display: none;
+}

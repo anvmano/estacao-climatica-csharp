@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{5F02A695-2866-49E2-9C7B-08AB9439FBCF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstacaoClimatica.Domain", "src\EstacaoClimatica.Domain\EstacaoClimatica.Domain.csproj", "{66E521BD-535C-4419-A832-302D016AC26C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstacaoClimatica.Application", "src\EstacaoClimatica.Application\EstacaoClimatica.Application.csproj", "{B5A58004-5838-43BD-BB82-672A2E2F4FE3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstacaoClimatica.Infrastructure", "src\EstacaoClimatica.Infrastructure\EstacaoClimatica.Infrastructure.csproj", "{908A09FE-0DAE-43E2-85D5-920AA38D4AFC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstacaoClimatica.Web", "src\EstacaoClimatica.Web\EstacaoClimatica.Web.csproj", "{1D54A2EE-0510-4D62-AB92-57F168310371}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{9A1A8FD7-03DB-4D1D-8D7A-ADCFC201262C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstacaoClimatica.Tests", "tests\EstacaoClimatica.Tests\EstacaoClimatica.Tests.csproj", "{EC038926-6246-40C9-ACB9-0B815D338A8A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{66E521BD-535C-4419-A832-302D016AC26C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66E521BD-535C-4419-A832-302D016AC26C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66E521BD-535C-4419-A832-302D016AC26C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66E521BD-535C-4419-A832-302D016AC26C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5A58004-5838-43BD-BB82-672A2E2F4FE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5A58004-5838-43BD-BB82-672A2E2F4FE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5A58004-5838-43BD-BB82-672A2E2F4FE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5A58004-5838-43BD-BB82-672A2E2F4FE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{908A09FE-0DAE-43E2-85D5-920AA38D4AFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{908A09FE-0DAE-43E2-85D5-920AA38D4AFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{908A09FE-0DAE-43E2-85D5-920AA38D4AFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{908A09FE-0DAE-43E2-85D5-920AA38D4AFC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D54A2EE-0510-4D62-AB92-57F168310371}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D54A2EE-0510-4D62-AB92-57F168310371}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D54A2EE-0510-4D62-AB92-57F168310371}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D54A2EE-0510-4D62-AB92-57F168310371}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EC038926-6246-40C9-ACB9-0B815D338A8A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC038926-6246-40C9-ACB9-0B815D338A8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC038926-6246-40C9-ACB9-0B815D338A8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC038926-6246-40C9-ACB9-0B815D338A8A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{66E521BD-535C-4419-A832-302D016AC26C} = {5F02A695-2866-49E2-9C7B-08AB9439FBCF}
+		{B5A58004-5838-43BD-BB82-672A2E2F4FE3} = {5F02A695-2866-49E2-9C7B-08AB9439FBCF}
+		{908A09FE-0DAE-43E2-85D5-920AA38D4AFC} = {5F02A695-2866-49E2-9C7B-08AB9439FBCF}
+		{1D54A2EE-0510-4D62-AB92-57F168310371} = {5F02A695-2866-49E2-9C7B-08AB9439FBCF}
+		{EC038926-6246-40C9-ACB9-0B815D338A8A} = {9A1A8FD7-03DB-4D1D-8D7A-ADCFC201262C}
+	EndGlobalSection
+EndGlobal

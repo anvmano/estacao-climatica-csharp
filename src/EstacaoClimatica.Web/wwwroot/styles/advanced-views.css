@@ -1,0 +1,206 @@
+/* =====================================================================
+   Advanced visualizations
+   ===================================================================== */
+.advanced-section {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    margin-bottom: 1rem;
+    padding: 1rem;
+}
+
+.collapsible-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font);
+    min-height: 44px;
+}
+
+.collapsible-trigger:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: var(--radius-sm);
+}
+
+.collapsible-trigger__icon {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.collapsible-section:not(.is-collapsed) .collapsible-trigger__icon {
+    font-size: 0;
+}
+
+.collapsible-section:not(.is-collapsed) .collapsible-trigger__icon::before {
+    content: '-';
+    font-size: 1rem;
+}
+
+.collapsible-section.is-collapsed .advanced-grid,
+.collapsible-section.is-collapsed .table-wrapper {
+    display: none;
+}
+
+.collapsible-section:not(.is-collapsed) .advanced-grid,
+.collapsible-section:not(.is-collapsed) .table-wrapper {
+    margin-top: 0.85rem;
+}
+
+.advanced-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.table-section {
+    margin-bottom: 1rem;
+}
+
+.advanced-panel {
+    min-width: 0;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.85rem;
+}
+
+.advanced-panel--wide {
+    grid-column: 1 / -1;
+}
+
+.advanced-panel__title {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+}
+
+.heatmap-cell {
+    min-width: 0;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1px;
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.70rem;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+}
+
+.heatmap-cell strong {
+    font-size: 0.74rem;
+}
+
+.heatmap-cell--empty {
+    background: transparent;
+    border-color: transparent;
+}
+
+.calendar-heatmap {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.calendar-heatmap__weekday {
+    color: var(--text-muted);
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.heatmap-cell.is-selected {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.hourly-heatmap {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.weekly-heatmap {
+    display: grid;
+    grid-template-columns: 48px repeat(24, minmax(24px, 1fr));
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    scrollbar-color: rgba(56, 189, 248, 0.45) rgba(15, 23, 42, 0.4);
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+
+.weekly-heatmap__axis {
+    min-width: 24px;
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-align: center;
+    align-self: center;
+}
+
+.weekly-heatmap__day {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    width: 48px;
+    min-width: 48px;
+    box-sizing: border-box;
+    padding: 0 0.35rem;
+    background: var(--bg-card);
+    box-shadow: 4px 0 0 var(--bg-card), 5px 0 0 rgba(56, 189, 248, 0.10);
+    text-align: left;
+}
+
+.weekly-heatmap__axis--corner {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    width: 48px;
+    min-width: 48px;
+    min-height: 24px;
+    align-self: stretch;
+    box-sizing: border-box;
+    background: var(--bg-card);
+    box-shadow: 4px 0 0 var(--bg-card), 5px 0 0 rgba(56, 189, 248, 0.10);
+}
+
+.weekly-heatmap__cell {
+    min-width: 24px;
+    min-height: 24px;
+}
+
+.weekly-heatmap__day + .weekly-heatmap__cell {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}

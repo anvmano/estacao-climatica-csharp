@@ -1,0 +1,42 @@
+/* =====================================================================
+   Design tokens
+   ===================================================================== */
+:root {
+    --bg-page:        #0a1020;
+    --bg-surface:     #101827;
+    --bg-card:        #172033;
+    --bg-card-hover:  #1b263b;
+    --bg-panel:       rgba(15, 23, 42, 0.56);
+    --bg-elevated:    rgba(23, 32, 51, 0.88);
+    --border:         rgba(132, 163, 214, 0.16);
+    --border-hover:   rgba(125, 211, 252, 0.42);
+
+    --accent:         #38bdf8;
+    --accent-dim:     rgba(56, 189, 248, 0.12);
+    --accent-glow:    rgba(56, 189, 248, 0.25);
+
+    --text-primary:   #f4f7fb;
+    --text-secondary: #a7b4c8;
+    --text-muted:     #8290a6;
+
+    --font:           'Inter', system-ui, sans-serif;
+    --radius-sm:      6px;
+    --radius-md:      8px;
+    --radius-lg:      10px;
+
+    --shadow-card:    0 1px 2px rgba(0,0,0,0.34), 0 10px 28px rgba(0,0,0,0.22);
+    --shadow-hover:   0 2px 4px rgba(0,0,0,0.42), 0 14px 34px rgba(0,0,0,0.30);
+    --shadow-popover: 0 18px 48px rgba(0,0,0,0.42);
+
+    --space-1:        0.25rem;
+    --space-2:        0.5rem;
+    --space-3:        0.75rem;
+    --space-4:        1rem;
+    --space-5:        1.25rem;
+    --space-6:        1.5rem;
+
+    --focus-ring:     0 0 0 3px rgba(56, 189, 248, 0.20);
+
+    --tab-h:          56px;
+    --header-h:       64px;
+}

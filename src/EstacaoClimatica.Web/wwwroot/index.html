@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta name="theme-color" content="#111827" />
+    <meta name="description" content="Dashboard da Estação Climática com dados de ambiente, aquário, ciclo solar, AQI estimado, fase da lua e exportação PDF/JSON." />
+    <title>Estação Climática</title>
+    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="style.css?v=20260922-uiux2" rel="stylesheet" />
+    <link rel="preload" href="styles/chat.css?v=20260922-uiux2" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link href="styles/chat.css?v=20260922-uiux2" rel="stylesheet" /></noscript>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-inner">
+            <a class="header-brand" href="./" aria-label="Atualizar Estação Climática">
+                <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+                    <circle cx="12" cy="12" r="4"/>
+                </svg>
+                <span class="header-brand__title">Estação Climática</span>
+            </a>
+            <div class="header-status">
+                <button class="season-indicator season-indicator--unknown" id="seasonIndicator" type="button" aria-expanded="false" aria-controls="seasonPopover" title="Estação do ano indisponível">
+                    <span class="season-indicator__scene" aria-hidden="true">
+                        <span class="season-indicator__orb"></span>
+                    </span>
+                    <strong class="season-indicator__value">--</strong>
+                </button>
+                <div class="season-header-popover" id="seasonPopover" hidden>
+                    <div class="season-header-popover__header">
+                        <span>Estação do ano</span>
+                        <strong>--</strong>
+                    </div>
+                    <dl class="season-header-popover__list"></dl>
+                </div>
+                <button class="aqi-indicator aqi-indicator--unknown" id="aqiIndicator" type="button" aria-expanded="false" aria-controls="aqiPopover" title="AQI estimado indisponível">
+                    <span class="aqi-indicator__prefix">AQI</span>
+                    <strong class="aqi-indicator__value">--</strong>
+                    <span class="aqi-indicator__status">--</span>
+                </button>
+                <div class="aqi-popover" id="aqiPopover" hidden>
+                    <div class="aqi-popover__header">
+                        <span>AQI estimado da Sala</span>
+                        <strong>--</strong>
+                    </div>
+                    <p class="aqi-popover__text">Sem dados suficientes do MQ135.</p>
+                </div>
+                <button class="astro-indicator astro-indicator--day" id="astroIndicator" type="button" aria-expanded="false" aria-controls="astroPopover" title="Ciclo atual do dia" aria-label="Ciclo atual do dia">
+                    <span class="astro-indicator__track" aria-hidden="true">
+                        <span class="astro-indicator__orb"></span>
+                    </span>
+                    <span class="astro-indicator__label" aria-hidden="true"></span>
+                </button>
+                <div class="astro-popover" id="astroPopover" hidden>
+                    <div class="astro-popover__header">
+                        <span>Ciclo solar de hoje</span>
+                        <strong>--</strong>
+                    </div>
+                    <dl class="astro-popover__list"></dl>
+                </div>
+                <button class="moon-indicator moon-indicator--unknown" id="moonIndicator" type="button" aria-expanded="false" aria-controls="moonPopover" title="Fase da lua indisponível" aria-label="--. Fase da lua indisponível.">
+                    <span class="moon-indicator__scene" aria-hidden="true">
+                        <span class="moon-indicator__orb"></span>
+                    </span>
+                    <strong class="moon-indicator__value">--</strong>
+                </button>
+                <div class="moon-popover" id="moonPopover" hidden>
+                    <div class="moon-popover__header">
+                        <span>Fase da lua</span>
+                        <strong>--</strong>
+                    </div>
+                    <dl class="moon-popover__list"></dl>
+                </div>
+                <div class="header-time" id="headerTime"></div>
+                <button class="auth-logout-button" id="authLogoutButton" type="button" hidden>Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="public-app" id="publicApp" aria-labelledby="publicPageTitle" hidden>
+        <div class="public-shell">
+            <div class="public-hero">
+                <div class="public-hero__content">
+                    <span class="public-eyebrow">Modo público</span>
+                    <h1 id="publicPageTitle">Clima por localização</h1>
+                    <p>Consulte por CEP, nome da cidade ou use a localização do navegador para ver clima atual, chuva, índice UV, qualidade do ar e recomendações ambientais.</p>
+                    <div class="public-feature-list" aria-label="Dados exibidos no modo público">
+                        <span>Temperatura</span>
+                        <span>Sensação</span>
+                        <span>Umidade</span>
+                        <span>AQI externo</span>
+                        <span>Chuva e UV</span>
+                    </div>
+                </div>
+                <div class="public-hero__panel">
+                    <div class="public-user-status" id="publicUserStatus">
+                        <button type="button" id="publicLoginButton">Entrar com Google</button>
+                    </div>
+                    <div class="public-controls" aria-label="Consulta pública de clima">
+                        <button class="toolbar-button public-location-button" type="button" id="publicLocationButton">Usar localização</button>
+                        <div class="public-search-mode" role="group" aria-label="Forma de busca">
+                            <button class="active" id="publicSearchModeCep" type="button" aria-pressed="true">CEP</button>
+                            <button id="publicSearchModeCity" type="button" aria-pressed="false">Cidade</button>
+                        </div>
+                        <form class="public-search-form" id="publicSearchForm">
+                            <label id="publicSearchLabel" for="publicSearchInput">CEP</label>
+                            <input id="publicSearchInput" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000" />
+                            <button class="toolbar-button" id="publicSearchButton" type="submit">Buscar</button>
+                        </form>
+                        <div class="public-city-results" id="publicCityResults" aria-label="Cidades encontradas" hidden></div>
+                    </div>
+                    <p class="public-search-status" id="publicSearchStatus" role="status" aria-live="polite" aria-atomic="true"></p>
+                </div>
+            </div>
+            <div class="public-results" id="publicResults" aria-busy="false"></div>
+        </div>
+    </main>
+
+    <div class="app-body" id="privateApp" hidden>
+        <h1 class="visually-hidden">Estação Climática</h1>
+        <div class="tab-toolbar">
+            <nav class="tab-nav" role="tablist" aria-label="Ambientes monitorados">
+                <button class="tablink active" id="tabEstacao" type="button" role="tab" aria-selected="true" aria-controls="Tab0" tabindex="0" data-tab-target="Tab0">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/><circle cx="12" cy="12" r="4"/></svg>
+                    Estação
+                </button>
+                <button class="tablink" id="tabSala" type="button" role="tab" aria-selected="false" aria-controls="Tab1" tabindex="-1" data-tab-target="Tab1">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Sala
+                </button>
+                <button class="tablink" id="tabQuarto" type="button" role="tab" aria-selected="false" aria-controls="Tab2" tabindex="-1" data-tab-target="Tab2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    Quarto
+                </button>
+                <button class="tablink" id="tabAquario" type="button" role="tab" aria-selected="false" aria-controls="Tab3" tabindex="-1" data-tab-target="Tab3">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    Aquário
+                </button>
+            </nav>
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <label for="selectedDate" class="toolbar-label">Selecionar dia</label>
+                    <input type="date" id="selectedDate" class="date-picker" />
+                    <button type="button" id="btnToday" class="toolbar-button">Hoje</button>
+                    <div class="export-format-toggle" role="radiogroup" aria-label="Formato de exportação">
+                        <input type="radio" id="exportFormatPdf" name="exportFormat" value="pdf" checked />
+                        <label for="exportFormatPdf">PDF</label>
+
+                        <input type="radio" id="exportFormatJson" name="exportFormat" value="json" />
+                        <label for="exportFormatJson">JSON</label>
+                    </div>
+                    <button type="button" id="btnExportData" class="toolbar-button toolbar-button--export">Exportar PDF</button>
+                </div>
+                <div class="export-feedback" id="exportFeedback" role="status" aria-live="polite" hidden>
+                    <span id="exportStatus"></span>
+                    <button type="button" id="btnRetryExport" hidden>Tentar novamente</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading-bar" id="loadingBar"></div>
+        <main class="container">
+            <div class="tabcontent" id="Tab0" role="tabpanel" aria-labelledby="tabEstacao">
+                <div class="station-context-row">
+                    <section class="season-timeline" id="seasonTimeline" aria-label="Estação do ano atual"></section>
+                    <section class="moon-summary" id="moonSummary" aria-label="Fase da lua da data consultada"></section>
+                </div>
+                <div class="stats-grid" id="statsEstacao" aria-label="Resumo global da estação">
+                    <article class="stats-card station-summary-card station-summary-card--placeholder" aria-hidden="true"></article>
+                    <article class="stats-card station-summary-card station-summary-card--placeholder" aria-hidden="true"></article>
+                    <article class="stats-card station-summary-card station-summary-card--placeholder" aria-hidden="true"></article>
+                    <article class="stats-card station-summary-card station-summary-card--placeholder" aria-hidden="true"></article>
+                    <article class="stats-card station-summary-card station-summary-card--placeholder" aria-hidden="true"></article>
+                    <article class="stats-card station-summary-card station-summary-card--placeholder" aria-hidden="true"></article>
+                </div>
+                <section class="environment-insights" id="environmentInsights" aria-label="Condições e recomendações atuais"></section>
+                <div class="charts-grid">
+                    <div class="chart-card" id="chart-container-global-temp">
+                        <span class="chart-label">Temperatura por Ambiente</span>
+                        <canvas aria-label="Temperatura comparativa por ambiente" class="plot" id="plotGlobalTemperature" role="img"></canvas>
+                    </div>
+                    <div class="chart-card" id="chart-container-global-umidade">
+                        <span class="chart-label">Umidade por Ambiente</span>
+                        <canvas aria-label="Umidade comparativa por ambiente" class="plot" id="plotGlobalHumidity" role="img"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card chart-card--wide" id="chart-container-rain">
+                    <span class="chart-label">Chuva · 24h + previsão 12h</span>
+                    <span class="chart-rain-status" id="rainCurrentCondition">Condição atual indisponível</span>
+                    <canvas aria-label="Precipitação e chance de chuva da localização" class="plot" id="plotRain" role="img"></canvas>
+                    <div class="state-message" id="rainChartState">
+                        <span>Use sua localização para carregar precipitação observada e previsão.</span>
+                        <button class="environment-insights__location" id="rainLocationButton" type="button">Usar localização</button>
+                    </div>
+                </div>
+                <div class="chart-card chart-card--wide" id="chart-container-sun-today">
+                    <span class="chart-label">Ciclo Solar do Dia</span>
+                    <span class="chart-card__meta-chip" id="solarDayDuration" hidden></span>
+                    <canvas aria-label="Ciclo solar do dia selecionado" class="plot plot--solar-day" id="plotSolarToday" role="img"></canvas>
+                </div>
+                <div class="chart-card chart-card--wide" id="chart-container-sun">
+                    <span class="chart-label">Nascer &amp; Pôr do Sol</span>
+                    <canvas aria-label="Nascer e pôr do sol" class="plot" id="plotSunriseSunset" role="img"></canvas>
+                </div>
+            </div>
+
+            <div class="tabcontent" id="Tab1" role="tabpanel" aria-labelledby="tabSala">
+                <div class="stats-grid" id="statsSala" aria-label="Resumo dos dados da sala"></div>
+                <div class="charts-grid" id="chartsSala"></div>
+                <section class="advanced-section collapsible-section is-collapsed" aria-label="Visualizações climáticas avançadas da sala">
+                    <button class="collapsible-trigger" type="button" aria-expanded="false">
+                        <span class="chart-label">Visualizações Climáticas</span>
+                        <span class="collapsible-trigger__icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="advanced-grid">
+                        <div class="advanced-panel">
+                            <span class="advanced-panel__title">Calendário Climático Mensal</span>
+                            <div class="calendar-heatmap" id="monthlyClimateCalendarSala"></div>
+                        </div>
+                        <div class="advanced-panel">
+                            <span class="advanced-panel__title">Heatmap por Hora do Dia</span>
+                            <div class="hourly-heatmap" id="hourlyHeatmapSala"></div>
+                        </div>
+                        <div class="advanced-panel advanced-panel--wide">
+                            <span class="advanced-panel__title">Mapa Semanal por Dia/Hora</span>
+                            <div class="weekly-heatmap" id="weeklyHeatmapSala"></div>
+                        </div>
+                    </div>
+                </section>
+                <section class="advanced-section collapsible-section table-section is-collapsed">
+                    <button class="collapsible-trigger" type="button" aria-expanded="false">
+                        <span class="chart-label">Tabela</span>
+                        <span class="collapsible-trigger__icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="table-wrapper" id="dataSala"></div>
+                </section>
+            </div>
+
+            <div class="tabcontent" id="Tab2" role="tabpanel" aria-labelledby="tabQuarto">
+                <div class="stats-grid" id="statsQuarto" aria-label="Resumo dos dados do quarto"></div>
+                <div class="charts-grid" id="chartsQuarto"></div>
+                <section class="advanced-section collapsible-section is-collapsed" aria-label="Visualizações climáticas avançadas">
+                    <button class="collapsible-trigger" type="button" aria-expanded="false">
+                        <span class="chart-label">Visualizações Climáticas</span>
+                        <span class="collapsible-trigger__icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="advanced-grid">
+                        <div class="advanced-panel">
+                            <span class="advanced-panel__title">Calendário Climático Mensal</span>
+                            <div class="calendar-heatmap" id="monthlyClimateCalendar"></div>
+                        </div>
+                        <div class="advanced-panel">
+                            <span class="advanced-panel__title">Heatmap por Hora do Dia</span>
+                            <div class="hourly-heatmap" id="hourlyHeatmap"></div>
+                        </div>
+                        <div class="advanced-panel advanced-panel--wide">
+                            <span class="advanced-panel__title">Mapa Semanal por Dia/Hora</span>
+                            <div class="weekly-heatmap" id="weeklyHeatmap"></div>
+                        </div>
+                    </div>
+                </section>
+                <section class="advanced-section collapsible-section table-section is-collapsed">
+                    <button class="collapsible-trigger" type="button" aria-expanded="false">
+                        <span class="chart-label">Tabela</span>
+                        <span class="collapsible-trigger__icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="table-wrapper" id="data"></div>
+                </section>
+            </div>
+
+            <div class="tabcontent" id="Tab3" role="tabpanel" aria-labelledby="tabAquario">
+                <div class="stats-grid" id="statsAquario" aria-label="Resumo dos dados do aquário"></div>
+                <div class="charts-grid" id="chartsAquario"></div>
+                <section class="advanced-section collapsible-section table-section is-collapsed">
+                    <button class="collapsible-trigger" type="button" aria-expanded="false">
+                        <span class="chart-label">Tabela</span>
+                        <span class="collapsible-trigger__icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="table-wrapper" id="dataAquario"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <aside class="ai-chat" id="aiChat" aria-label="Chat da estação climática" hidden>
+        <button class="ai-chat__toggle" id="aiChatToggle" type="button" aria-expanded="false" aria-controls="aiChatPanel">
+            <span class="ai-chat__toggle-icon" aria-hidden="true"></span>
+            <span>Assistente</span>
+        </button>
+        <section class="ai-chat__panel" id="aiChatPanel" hidden>
+            <header class="ai-chat__header">
+                <div class="ai-chat__identity">
+                    <span class="ai-chat__avatar" aria-hidden="true"></span>
+                    <div>
+                        <span class="ai-chat__title">Assistente climático</span>
+                        <span class="ai-chat__subtitle">Dados da aba e data selecionadas</span>
+                    </div>
+                </div>
+                <button class="ai-chat__close" id="aiChatClose" type="button" aria-label="Fechar chat">×</button>
+            </header>
+            <div class="ai-chat__quick-actions" aria-label="Perguntas rápidas">
+                <button type="button" data-chat-question="Faça um resumo da data selecionada.">Resumo da data</button>
+                <button type="button" data-chat-question="Qual foi a temperatura média da data selecionada?">Temperatura média</button>
+                <button type="button" data-chat-question="Qual foi a temperatura máxima da data selecionada?">Máxima do dia</button>
+                <button type="button" data-chat-question="Quais indicadores ficaram fora da faixa ideal?">Alertas</button>
+            </div>
+            <div class="ai-chat__messages" id="aiChatMessages" role="log" aria-live="polite"></div>
+            <form class="ai-chat__form" id="aiChatForm">
+                <input class="ai-chat__input" id="aiChatInput" type="text" maxlength="240" placeholder="Ex: temperatura média hoje" autocomplete="off" />
+                <button class="ai-chat__submit" id="aiChatSubmit" type="submit">Enviar</button>
+            </form>
+        </section>
+    </aside>
+
+    <script src="vendor/chart.umd.min.js"></script>
+    <script src="scripts/utils.js?v=20260811-time-rounding"></script>
+    <script src="scripts/sincronizacao-graficos.js?v=20260922-uiux2"></script>
+    <script src="scripts/config.js?v=20260816-parity-final"></script>
+    <script src="scripts/season.js?v=20260623-station"></script>
+    <script src="scripts/moon.js?v=20260623-station"></script>
+    <script src="scripts/ui.js?v=20260922-uiux2"></script>
+    <script src="scripts/chuva.js?v=20260922-uiux2"></script>
+    <script src="scripts/pdf-report.js?v=20260816-parity"></script>
+    <script src="scripts/views/dashboard-view.js?v=20260816-parity"></script>
+    <script src="scripts/views/station-view.js?v=20260816-parity-final"></script>
+    <script src="scripts/solar.js?v=20260922-uiux2"></script>
+    <script src="scripts/heatmaps.js?v=20260613-highlight-safe-render"></script>
+    <script src="scripts/zoom.js?v=20260603-modular7"></script>
+    <script src="scripts/chat.js?v=20260614-chat-memory-scroll"></script>
+    <script src="scripts/auth.js?v=20260811-auth-regression"></script>
+    <script src="scripts/public-weather.js?v=20260922-uiux2"></script>
+    <script src="app.js?v=20260922-uiux2"></script>
+</body>
+</html>
+
+
+
+
+
+
+
