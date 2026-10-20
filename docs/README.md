@@ -2,9 +2,11 @@
 
 Dashboard para acompanhamento da aba global Estação, dados climáticos de Sala, Quarto, Aquário e eventos solares. O projeto original era uma aplicação estática em HTML/CSS/JavaScript que lia o Firebase Realtime Database diretamente no navegador. A versão atual é uma solução C#/.NET 8 com backend ASP.NET Core usando Controllers, mantendo o comportamento visual/funcional do original sempre que possível.
 
+O sistema também oferece um modo público sem login, com consulta por CEP, cidade brasileira ou localização do navegador, previsão de 15 dias, qualidade do ar e indicadores ambientais. O painel interno usa login Google e acesso restrito aos e-mails autorizados.
+
 ## Requisitos
 
-- .NET SDK 8 ou superior
+- .NET SDK 8 compatível com o projeto, que usa `net8.0`
 - Acesso à internet para consultar o Firebase Realtime Database
 - Navegador moderno
 - Bibliotecas de frontend já versionadas em `src/EstacaoClimatica.Web/wwwroot/vendor`
@@ -24,6 +26,22 @@ tests/
 
 ## Configuração
 
+### Configuração da cópia pública
+
+A versão publicada usa valores de exemplo no lugar da chave Firebase, dos identificadores do projeto e dos e-mails autorizados. Para conectar sua própria estação, configure os arquivos abaixo na sua instalação local:
+
+| Arquivo | Configuração necessária |
+| --- | --- |
+| [`appsettings.json`](../src/EstacaoClimatica.Web/appsettings.json) | `Firebase:DatabaseUrl`, caminhos de leitura e `InternalAccess:AuthorizedEmails`. |
+| [`InternalAccessOptions.cs`](../src/EstacaoClimatica.Application/Configuration/InternalAccessOptions.cs) | Chave `FirebaseApiKey` usada pelo backend na verificação de tokens. Ela também pode ser definida por `InternalAccess:FirebaseApiKey` na configuração do ASP.NET Core. |
+| [`auth.js`](../src/EstacaoClimatica.Web/wwwroot/scripts/auth.js) | `apiKey`, `authDomain`, `projectId`, `appId` e a lista `usuariosInternos`. |
+
+Use o mesmo projeto Firebase no frontend e no backend e mantenha as listas de e-mails autorizados coerentes. Habilite o provedor Google no Firebase Authentication e autorize o domínio da aplicação, incluindo `localhost` no desenvolvimento. Não envie as configurações reais ao repositório público.
+
+A configuração web do Firebase continua legível no navegador quando a aplicação é executada; retirá-la do GitHub não a transforma em segredo. As regras do banco e as restrições da chave devem proteger o acesso. Chaves secretas de IA devem permanecer somente no backend.
+
+### Opções da aplicação
+
 As configurações principais ficam em:
 
 ```text
@@ -42,7 +60,10 @@ Configurações migradas:
 - `ArtificialIntelligence:Enabled`
 - `ArtificialIntelligence:Provider`
 - `ArtificialIntelligence:Model`
+- `ArtificialIntelligence:ApiKey`
+- `ArtificialIntelligence:Endpoint`
 - `ArtificialIntelligence:MaxPeriodDays`
+- `ArtificialIntelligence:MaxPromptChars`
 - `ArtificialIntelligence:RequireAppCheck`
 - `ArtificialIntelligence:AppCheck`
 - `PublicWeather:BrasilApiCepUrl`
@@ -51,24 +72,29 @@ Configurações migradas:
 - `PublicWeather:OpenMeteoForecastUrl`
 - `PublicWeather:OpenMeteoAirQualityUrl`
 - `InternalAccess:Enforce`
+- `InternalAccess:FirebaseApiKey`
 - `InternalAccess:AuthorizedEmails`
 - `Colors`
 
 O frontend usa Firebase Auth para login Google opcional. Todas as rotas internas em `/api`, incluindo dashboard, chat e consultas climaticas, validam o Firebase ID token no backend e aceitam somente os e-mails configurados em `InternalAccess:AuthorizedEmails`. Apenas `/api/health` e `/api/public-weather/*` sao anonimas.
 
-A integração de IA fica desativada por padrão. O chat já funciona com cálculo local em C#; quando `ArtificialIntelligence:Enabled=true`, o backend pode usar o modelo configurado para classificar/redigir a resposta. Chaves secretas de IA devem ser configuradas por variáveis de ambiente, User Secrets ou cofre externo, nunca em `wwwroot` ou em `appsettings.json` versionado. O App Check está modelado como configuração, mas o enforcement só deve ser ativado depois de validar os tokens no domínio de produção.
+A integração de IA fica desativada por padrão. O chat já funciona com cálculo local em C#; quando `ArtificialIntelligence:Enabled=true`, o backend pode usar o modelo configurado para classificar a intenção e redigir a resposta, mantendo os cálculos em C#. A implementação atual usa `ClienteGeracaoTextoGemini` para chamar a API Gemini pelo backend. O campo `Provider` não seleciona outra implementação automaticamente.
+
+Chaves secretas de IA devem ser configuradas por variáveis de ambiente, User Secrets previamente inicializados no projeto ou cofre externo, nunca em `wwwroot` ou em `appsettings.json` versionado. Por exemplo, o ASP.NET Core aceita `ArtificialIntelligence__ApiKey` e `InternalAccess__FirebaseApiKey` como variáveis de ambiente.
+
+`RequireAppCheck` e `AppCheck` estão modelados como configuração, mas não há validação de tokens App Check implementada. Alterar essas opções não ativa proteção por App Check.
 
 ## Como Rodar
 
 ```powershell
 dotnet restore EstacaoClimatica.sln
-dotnet run --project src/EstacaoClimatica.Web/EstacaoClimatica.Web.csproj
+dotnet run --project src/EstacaoClimatica.Web/EstacaoClimatica.Web.csproj --launch-profile http
 ```
 
-Depois, abra a URL indicada pelo ASP.NET Core. Em geral:
+O perfil `http` de `launchSettings.json` usa o endereço:
 
 ```text
-http://localhost:5000
+http://localhost:5285
 ```
 
 Também é possível consultar a API diretamente:
@@ -87,7 +113,7 @@ GET /api/public-weather/location?latitude=-23.5505&longitude=-46.6333
 POST /api/chat
 ```
 
-A data da API usa o mesmo formato do Firebase: `dd-MM-yyyy`. Os dez endpoints de consulta estao documentados em [`API_CONSULTAS.md`](API_CONSULTAS.md).
+A data da API usa o mesmo formato do Firebase: `dd-MM-yyyy`. Os dez endpoints de consulta estão documentados em [`API_CONSULTAS.md`](API_CONSULTAS.md). Na configuração padrão, as rotas internas exigem o cabeçalho `Authorization: Bearer <Firebase ID token>` de um usuário autorizado; os exemplos acima mostram apenas os caminhos das requisições.
 
 ## Como Testar
 
@@ -95,7 +121,9 @@ A data da API usa o mesmo formato do Firebase: `dd-MM-yyyy`. Os dez endpoints de
 dotnet test EstacaoClimatica.sln
 ```
 
-Os testes incluem servicos e controllers dos dez endpoints de consulta, autorizacao HTTP, qualidade dos sensores, validacao estrutural do frontend e Playwright com browser real para renderizacao DOM, acessibilidade, navegacao, tabelas e downloads PDF/JSON. A validacao atual possui 157 testes.
+Os testes incluem serviços e controllers dos dez endpoints de consulta, autorização HTTP, qualidade dos sensores, validação estrutural do frontend e Playwright com navegador real para renderização DOM, acessibilidade, navegação, tabelas e downloads PDF/JSON. A última execução na cópia pública aprovou os 192 testes da suíte.
+
+O teste de paridade ao vivo retorna sem realizar a comparação quando `RUN_LIVE_PARITY` não é `1`. Para exercitá-lo, também são necessários o projeto web original e a aplicação .NET em execução, com os endereços definidos por `ORIGINAL_WEB_URL` e `DOTNET_WEB_URL`. Os testes comuns de navegador usam dados simulados e não comprovam o login Google real nem as regras do Firebase em produção.
 
 ## Como Compilar
 
@@ -113,7 +141,7 @@ dotnet build EstacaoClimatica.sln
 - Os nomes literais de campos Firebase ficam centralizados em `CamposFirebase`.
 - A configuração de IA/App Check fica em `OpcoesIa`, sem chave secreta no frontend.
 - O assistente climático fica em `/api/chat`; o frontend envia pergunta, aba ativa, data selecionada e, quando houver, a última intenção resolvida para memória curta de conversa.
-- O assistente segue fluxo em duas etapas: classifica intenção, valida ambiente/data/métrica em C# e calcula localmente antes de usar IA apenas para redação quando habilitada.
+- O assistente classifica a intenção, valida ambiente/data/métrica e calcula localmente em C#. Quando habilitada, a IA pode auxiliar na interpretação da intenção e na redação da resposta; falhas na geração usam a resposta local como alternativa.
 - Regras principais foram migradas para C# em `ServicoDashboardClimatico`.
 - Consultas historicas, series, resumos, AQI, solar, alertas, comparacoes e exportacoes server-side ficam centralizadas em `ServicoConsultasClimaticas`.
 - O frontend novo em `wwwroot` renderiza dados já processados pela API e foi dividido em `scripts/` por responsabilidade, espelhando o projeto original.
@@ -162,7 +190,7 @@ dotnet build EstacaoClimatica.sln
 - O chat calcula AQI/IAQ/qualidade do ar em C# com os gases da Sala/MQ135, incluindo classificação, impacto, dominante e subíndices.
 - O chat responde consultas de faixa horária, últimas 24h reais, status de faixa de conforto, análise por horário e perguntas equivalentes aos heatmaps.
 - O chat responde ciclo solar e comparações solares: duração do dia, maior/menor duração de luz, tendência e comparação de nascer/pôr do sol.
-- Preparação segura para Firebase AI Logic/App Check, sem chave secreta no frontend.
+- Configuração de App Check modelada, ainda sem validação ou enforcement implementados; a integração Gemini atual mantém a chave secreta no backend.
 - Base backend do modo público com BrasilAPI, fallback ViaCEP, Open-Meteo Forecast, Air Quality e Geocoding.
 - Contrato público normalizado para cards, séries horárias, AQI, ciclo solar e previsão diária de 15 dias, sem persistência de coordenadas.
 - Consulta publica protegida contra respostas fora de ordem, com mascara/validacao acessivel de CEP/cidade, bloqueio durante carregamento e cache de sessao sanitizado.
