@@ -121,7 +121,7 @@ A data da API usa o mesmo formato do Firebase: `dd-MM-yyyy`. Os dez endpoints de
 dotnet test EstacaoClimatica.sln
 ```
 
-Os testes incluem serviços e controllers dos dez endpoints de consulta, autorização HTTP, qualidade dos sensores, validação estrutural do frontend e Playwright com navegador real para renderização DOM, acessibilidade, navegação, tabelas e downloads PDF/JSON. A última execução na cópia pública aprovou os 192 testes da suíte.
+Os testes incluem serviços e controllers dos dez endpoints de consulta, autorização HTTP, qualidade dos sensores, validação estrutural do frontend e Playwright com navegador real para renderização DOM, acessibilidade, navegação, tabelas e downloads PDF/JSON. A última execução na cópia pública aprovou os 202 testes da suíte.
 
 O teste de paridade ao vivo retorna sem realizar a comparação quando `RUN_LIVE_PARITY` não é `1`. Para exercitá-lo, também são necessários o projeto web original e a aplicação .NET em execução, com os endereços definidos por `ORIGINAL_WEB_URL` e `DOTNET_WEB_URL`. Os testes comuns de navegador usam dados simulados e não comprovam o login Google real nem as regras do Firebase em produção.
 
@@ -194,12 +194,13 @@ dotnet build EstacaoClimatica.sln
 - Base backend do modo público com BrasilAPI, fallback ViaCEP, Open-Meteo Forecast, Air Quality e Geocoding.
 - Contrato público normalizado para cards, séries horárias, AQI, ciclo solar e previsão diária de 15 dias, sem persistência de coordenadas.
 - Consulta publica protegida contra respostas fora de ordem, com mascara/validacao acessivel de CEP/cidade, bloqueio durante carregamento e cache de sessao sanitizado.
-- Tela pública inicial por CEP, cidade brasileira ou localização, com os mesmos cards, contexto sazonal/lunar e cinco gráficos do original.
+- Tela pública inicial por CEP, cidade brasileira ou localização, com cards, contexto sazonal/lunar e seis gráficos curtos sincronizados.
+- No modo público, precipitação em milímetros e chance de chuva em porcentagem usam gráficos separados, com estados vazios independentes. O painel interno e o PDF mantêm o gráfico combinado.
 - Pesquisa de cidade retorna ate cinco candidatos brasileiros, prioriza correspondencia exata sem diferenciar acentos/caixa e apresenta a regiao administrativa para desambiguar homonimos.
 - Os graficos publicos de Temperatura, Sensacao Termica, Umidade e Pressao combinam as ultimas 24 horas observadas com as proximas 12 horas previstas, iniciadas na proxima hora cheia.
 - A chamada Open-Meteo usa `past_hours=24`, `forecast_hours=13`, `forecast_days=15` e os agregados diarios de temperatura minima/maxima, chuva, UV e codigo meteorologico.
 - A previsao publica de 15 dias inclui faixa compacta e graficos sincronizados de temperatura, chuva e UV. Do 8o dia em diante, fundo, opacidade e tracejado indicam maior incerteza sem alterar valores.
-- Em desktop largo, os cinco graficos curtos usam grade 3 + 2; tablet usa duas colunas; celular usa carrossel. Os tres graficos diarios usam tres colunas acima de 640 px e carrossel no celular.
+- Em desktop largo, os seis gráficos curtos usam grade 3 + 3 com alturas uniformes; tablet usa duas colunas; celular usa carrossel. Os três gráficos diários usam três colunas acima de 640 px e carrossel no celular.
 - Medido e Previsao possuem estilos, legenda e tooltips distintos, separados pelo marcador `Agora`; o zoom preserva essa semantica e o mobile mantem todos os pontos com menos rotulos no eixo X.
 - Login/logout Google opcional; usuário não autorizado permanece no modo público.
 - Dashboard, chat e exportações só são inicializados para usuário interno autorizado.

@@ -723,7 +723,7 @@ flowchart LR
 - `PublicWeatherServiceTests.cs`, `FrontendStructureTests.cs` e `FrontendBrowserTests.cs` protegem a chamada unica, o contrato visual e os casos de 03/06/2026 em hora cheia, minuto fracionado e virada de dia.
 - `PublicWeatherData.PrevisaoQuinzeDias` depende de `PrevisaoDiaria`; `PublicWeatherService.cs` normaliza os arrays diarios e `public-weather.js` consome a mesma colecao no resumo e nos tres graficos.
 - `public-weather.js` registra os tres graficos no grupo `publico-15-dias`; `sincronizacao-graficos.js` expoe `sincronizarIndice` para faixa, mouse, toque e teclado compartilharem a data ativa.
-- `public-weather.css` define a grade curta 3 + 2 acima de 1100 px, duas colunas entre 641 e 1100 px e carrosseis ate 640 px. A previsao diaria usa tres colunas acima de 640 px.
+- `public-weather.css` define a grade curta 3 + 3 acima de 1100 px, duas colunas entre 641 e 1100 px e carrosseis ate 640 px. A previsao diaria usa tres colunas acima de 640 px. `stats.css` trata status longos no componente compartilhado.
 
 ## Graficos sincronizados e chuva
 
@@ -760,7 +760,8 @@ flowchart LR
 
 - `chuva.js` e `charts.css` formam o controle segmentado movel; `responsive.css` define altura do canvas e o breakpoint central em 640 px.
 - `public-weather.js` usa o mesmo modulo de chuva e adiciona/remover `has-results`; `public-weather.css` depende dessa classe para compactar o hero e ativar os carrosseis internos.
-- `zoom.js` e `pdf-report.js` continuam consumindo `window.ClimaChuva.obterOpcoes`; mudancas nos datasets ou nas escalas exigem regressao nos dois fluxos.
+- `zoom.js` clona as opcoes originais de chuva/publico e a visibilidade efetiva dos datasets, sem callback de resize que restaure series ocultas. `pdf-report.js` continua usando `ClimaChuva.criarGrafico` no modo combinado padrao; mudancas nos datasets ou nas escalas exigem regressao nos dois fluxos.
+- `public-weather.js` usa `ClimaChuva.criarGrafico` com modos fixos `precipitacao` e `probabilidade`; ambos entram no grupo `publico`. O privado nao passa modo e mantem o seletor mobile.
 - `ui.js` controla `is-hidden-on-scroll`; `header.css` limita a transformacao ao celular. `app.js` apenas inicializa esse comportamento no carregamento.
 - `responsive.css` cuida do acionador da assistente, mas a geometria do painel celular deve permanecer no fim de `chat.css`, carregado posteriormente.
 - Os testes estruturais protegem contratos de DOM/CSS/JS. Os testes de navegador validam Chart.js real, redimensionamento, ausencia de duplicidade, tablet, header, bottom sheet e modo publico compacto.

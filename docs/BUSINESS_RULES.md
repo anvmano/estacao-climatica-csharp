@@ -578,9 +578,12 @@ Arquivos: `PublicWeatherService.cs`, `public-weather.js`, `zoom.js`.
 - `ServicoClimaPublico` obtem dados suficientes em uma unica chamada Open-Meteo Forecast com `timezone=auto`, `past_hours=24`, `forecast_hours=13` e `forecast_days=15`, inclusive quando a janela cruza a meia-noite.
 - A consulta diaria pede `temperature_2m_min`, `temperature_2m_max`, `precipitation_sum`, `precipitation_probability_max`, `uv_index_max` e `weather_code`, alem dos eventos solares existentes.
 - `PrevisaoQuinzeDias` combina arrays pela posicao da data, limita a 15 itens, ordena cronologicamente e conserva campos ausentes como `null`. Do 8o ao 15o item, `MaiorIncerteza` e verdadeiro sem alterar os valores da API.
-- A previsao de 15 dias aparece depois dos cinco graficos curtos e antes do ciclo solar: faixa `Data | Max. | Chuva | UV`, temperatura minima/maxima, chuva percentual/mm e UV maximo.
+- A previsao de 15 dias aparece depois dos seis graficos curtos e antes do ciclo solar: faixa `Data | Max. | Chuva | UV`, temperatura minima/maxima, chuva percentual/mm e UV maximo.
 - Se os agregados diarios estiverem ausentes, clima atual, insights, graficos curtos e ciclo solar permanecem na tela. O bloco diario mostra estado indisponivel e permite nova tentativa sem limpar os dados ja carregados.
-- Acima de 1100 px os graficos curtos usam grade 3 + 2 sem celula vazia; de 641 a 1100 px usam duas colunas; ate 640 px viram carrossel. Os tres graficos diarios ficam em tres colunas acima de 640 px e carrossel abaixo disso.
+- Acima de 1100 px os graficos curtos usam grade 3 + 3 sem celula vazia e alturas iguais; de 641 a 1100 px usam duas colunas; ate 640 px viram carrossel. Os tres graficos diarios ficam em tres colunas acima de 640 px e carrossel abaixo disso.
+- No publico, Precipitacao (mm) e Chance de chuva (%) sao graficos separados com a mesma janela de 24h anteriores e 12h previstas, marcador Agora e sincronizacao. Ausencia em uma serie nao apaga a outra; nao ha seletor interno. O privado e o PDF mantem o grafico combinado.
+- Zoom conserva visibilidade definida pela legenda, segmentos tracejados, cores, eixos e metadados; seu foco nao deve deslocar a pagina nem o carrossel. A previsao de 15 dias nao integra o PDF.
+- Status longos nos cards compartilhados devem quebrar em linha propria no mobile (ate 640 px), sem sobrepor titulo ou valor. Valores atuais ausentes aparecem como `--`, nunca zero.
 - Faixa e graficos diarios sincronizam a mesma data por ponteiro, toque, foco, `ArrowLeft`, `ArrowRight`, `Home` e `End`; ao sair do conjunto, selecao e tooltips sao removidos.
 
 Criticidade: Alta.

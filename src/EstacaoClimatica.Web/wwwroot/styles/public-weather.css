@@ -52,6 +52,7 @@
 .public-context-card strong { display: block; margin-top: 7px; color: var(--text-primary); font-size: 1.05rem; }
 .public-app .charts-grid { margin-bottom: 0; }
 .public-app .chart-card { min-height: 292px; }
+.public-metric-charts { grid-auto-rows: 1fr; }
 
 @media (min-width: 641px) {
     .public-metric-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -59,9 +60,7 @@
 }
 
 @media (min-width: 1101px) {
-    .public-metric-charts { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-    .public-metric-charts > .chart-card { grid-column: span 2; }
-    .public-metric-charts > .chart-card:nth-last-child(-n + 2) { grid-column: span 3; }
+    .public-metric-charts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 .public-forecast { display: grid; gap: 0.9rem; }

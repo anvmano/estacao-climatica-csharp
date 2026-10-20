@@ -238,7 +238,7 @@ Antes de alterar codigo, verifique se a mudanca afeta o contrato JSON entre `Das
 - O inicio da previsao e sempre a proxima hora cheia, sem duplicar a medicao atual. Valores ausentes continuam `null`; no mobile apenas a quantidade de rotulos do eixo X e reduzida.
 - A chamada Forecast usa `timezone=auto`, `past_hours=24`, `forecast_hours=13` e `forecast_days=15`. Os campos diarios sao temperatura minima/maxima, precipitacao, probabilidade maxima de chuva, UV maximo e codigo meteorologico.
 - `PrevisaoDiaria` usa nomes internos PT-BR, limita a colecao a 15 datas ordenadas e marca `MaiorIncerteza` do 8o dia em diante. Arrays externos menores produzem `null`, nunca zero.
-- No modo publico, a ordem e: busca, cards atuais, estacao/lua, recomendacoes, cinco graficos curtos, previsao de 15 dias e ciclo solar. Os tres graficos diarios e a faixa compacta compartilham selecao por mouse, toque e teclado.
+- No modo publico, a ordem e: busca, cards atuais, estacao/lua, recomendacoes, seis graficos curtos, previsao de 15 dias e ciclo solar. Os tres graficos diarios e a faixa compacta compartilham selecao por mouse, toque e teclado.
 - `zoom.js` preserva datasets, tracejado, origem Medido/Previsao, marcador, tooltips e unidades. O grafico solar nao participa dessa regra.
 - A busca por cidade usa `GET /api/public-weather/cities?term=...`; a cidade escolhida segue por `POST /api/public-weather/city` e reutiliza `BuscarPorCoordenadasAsync`.
 - `CidadePublica` representa id, nome, estado, regiao administrativa, pais, codigo do pais, coordenadas, fuso e rotulo. Homonimos incluem a regiao entre parenteses quando ela difere da cidade e do estado.
@@ -256,7 +256,7 @@ IA/App Check ficam em `ArtificialIntelligence`/`OpcoesIa`; segredo de IA deve vi
 - `ChartPoint.Instante` transporta o instante Firebase em ISO local (`yyyy-MM-ddTHH:mm:ss`); entrada invalida produz `null`, sem remover o ponto ou converter valor ausente em zero.
 - `scripts/sincronizacao-graficos.js` expoe `window.SincronizadorGraficos`. Os grupos `sala`, `quarto`, `aquario`, `estacao` e `publico` correlacionam tooltip por instante exato ou pelo ponto mais proximo, limitado a 45 minutos. Solar e zoom ficam fora dos grupos.
 - `scripts/chuva.js` expoe `window.ClimaChuva`: 24 horas observadas, 12 horas previstas desde a proxima hora cheia, barras observadas/previstas, chance tracejada e marcador atual.
-- A consulta publica organiza Temperatura/Sensacao/Umidade na primeira linha e Pressao/Chuva na segunda em telas acima de 1100 px; de 641 a 1100 px usa duas colunas e ate 640 px usa carrossel. A Estacao mantem o card de chuva visivel, mas so consulta dados externos por acao explicita.
+- A consulta publica organiza Temperatura/Sensacao/Umidade na primeira linha e Pressao/Precipitacao/Chance de chuva na segunda em telas acima de 1100 px; de 641 a 1100 px usa duas colunas e ate 640 px usa carrossel. Os seis cards tem altura uniforme. A Estacao mantem o card combinado de chuva, mas so consulta dados externos por acao explicita.
 - PDF/JSON da Estacao incluem clima externo apenas quando ja existe em memoria, sem nova API. O JSON remove coordenadas, precisao e CEP; sem consulta, o contrato anterior permanece igual.
 - Tooltip do historico solar usa modo `index` e ordem vertical real. Em ate 640 px, o chip de duracao fica no fluxo entre rotulo e canvas.
 - Regressao obrigatoria: `03/06/2026`, desktop, larguras 320/360/390 e paisagem `720x360`.
@@ -264,8 +264,9 @@ IA/App Check ficam em `ArtificialIntelligence`/`OpcoesIa`; segredo de IA deve vi
 ## Revisao responsiva de UI/UX (2026-09-22)
 
 - O modo publico usa `main#publicApp`, `h1#publicPageTitle` e estado compacto `has-results`. Em ate 640 px, o hero some depois de uma consulta; `Alterar local` restaura o formulario e devolve o foco ao campo de busca.
-- Cards publicos usam duas colunas no celular, com AQI em largura total. Insights, os cinco graficos curtos e os tres graficos diarios usam faixas horizontais acessiveis com `scroll-snap`; ciclo solar continua em bloco de largura total.
-- `scripts/chuva.js` cria no celular o seletor `Precipitacao`/`Chance`. Precipitacao mostra as duas barras e a escala em mm; Chance mostra apenas a linha e a escala percentual. Acima de 640 px, o controle e removido e os tres datasets, legenda, duas escalas e 13 ticks sao restaurados.
+- Cards publicos usam duas colunas no celular, com AQI em largura total. Insights, os seis graficos curtos e os tres graficos diarios usam faixas horizontais acessiveis com `scroll-snap`; ciclo solar continua em bloco de largura total. O componente compartilhado de cards permite quebra de status longo em linha propria ate 640 px, sem truncar titulo ou valor.
+- `scripts/chuva.js` cria no celular privado o seletor `Precipitacao`/`Chance`. No publico, `modo: precipitacao/probabilidade` fixa cada grafico, com estado vazio independente e sem seletor; ambos sincronizam o mesmo horario. O ID `publicChartRain` foi preservado e `publicChartRainProbability` adicionado.
+- Zoom copia a visibilidade efetiva das series, opcoes, segmentos de incerteza, eixos, unidades, marcador e chaves temporais; nao recria o controle responsivo nem altera scroll ao focar. PDF privado mantem chuva combinada e nao inclui previsao diaria.
 - O controle de chuva e removido no `beforeDestroy`, nao duplica em novas consultas e preserva `window.ClimaChuva`, marcador atual, nulos, sincronizacao, zoom e PDF.
 - Em ate 640 px, o header recolhe ao rolar para baixo e reaparece ao subir, voltar ao topo, focar um item ou abrir um popover. O limiar e 8 px e o estado oculto e limpo ao sair da media query.
 - O breakpoint de tablet e `641px` a `960px`: quatro abas em uma linha e toolbar em uma linha separada, com alvos de toque de pelo menos 44 px.

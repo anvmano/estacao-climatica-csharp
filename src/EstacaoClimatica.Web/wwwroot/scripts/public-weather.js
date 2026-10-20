@@ -472,7 +472,8 @@
                 ${cartaoTelaGrafico('publicChartFeelsLike', 'Sensação Térmica', 'Sensação térmica externa')}
                 ${cartaoTelaGrafico('publicChartHumidity', 'Umidade', 'Umidade externa')}
                 ${cartaoTelaGrafico('publicChartPressure', 'Pressão', 'Pressão externa')}
-                <div class="chart-card" id="public-rain-container"><span class="chart-label">Chuva · 24h + previsão 12h</span><span class="chart-rain-status" id="publicRainStatus"></span><canvas id="publicChartRain" class="plot" role="img" aria-label="Precipitação e chance de chuva públicas"></canvas></div>
+                <div class="chart-card" id="public-rain-container"><span class="chart-label">Precipitação · 24h + previsão 12h</span><span class="chart-rain-status" id="publicRainStatus"></span><canvas id="publicChartRain" class="plot" role="img" aria-label="Precipitação pública em milímetros"></canvas></div>
+                ${cartaoTelaGrafico('publicChartRainProbability', 'Chance de chuva · 24h + previsão 12h', 'Chance de chuva pública em porcentagem')}
             </div>
             ${montarSecaoPrevisaoQuinzeDias(dados.previsaoQuinzeDias)}
             <div class="chart-card chart-card--wide" id="public-solar-container"><span class="chart-label">Ciclo Solar do Dia</span><span class="chart-card__meta-chip" id="publicSolarDuration" hidden></span><canvas id="publicChartSolar" class="plot plot--solar-day" role="img" aria-label="Ciclo solar público"></canvas></div>`;
@@ -591,12 +592,12 @@
     }
 
     function cartao(titulo, valor, unidade, detalhe) {
-        const texto = Number.isFinite(Number(valor)) ? `${Number(valor).toFixed(unidade ? 2 : 0)}${unidade}` : '--';
+        const texto = numeroValido(valor) !== null ? `${Number(valor).toFixed(unidade ? 2 : 0)}${unidade}` : '--';
         return `<article class="stats-card public-card"><span class="stats-card__label">${titulo}</span><strong class="stats-card__value">${texto}</strong><span class="public-card__meta">${escapar(detalhe)}</span></article>`;
     }
 
     function cartaoAqi(valor, categoria) {
-        const texto = Number.isFinite(Number(valor)) ? Math.round(Number(valor)) : '--';
+        const texto = numeroValido(valor) !== null ? Math.round(Number(valor)) : '--';
         return `<article class="stats-card public-card public-card--aqi"><span class="stats-card__label">AQI externo</span><strong class="stats-card__value">${texto}</strong><span class="stats-card__trend">${escapar(categoria)}</span></article>`;
     }
 
@@ -943,21 +944,25 @@
     }
 
     function renderizarGraficoChuva(dados) {
-        const canvas = document.getElementById('publicChartRain');
-        const cartao = document.getElementById('public-rain-container');
         const estado = document.getElementById('publicRainStatus');
-        if (!canvas || !cartao) return;
-
         const janela = window.ClimaChuva?.montarJanela(dados.previsaoCurtoPrazo, dados.atualizadoEm);
-        const grafico = window.ClimaChuva?.criarGrafico({ canvas, janela, cores, grupoSincronizacao: 'publico' });
         const analise = window.ClimaChuva?.analisarAgora(dados.climaAtual || {});
         if (estado) estado.textContent = analise?.rotulo || 'Condição atual indisponível';
-        if (!grafico) {
-            renderizarMensagemGrafico(cartao, 'Sem dados de precipitação para a janela consultada.');
-            return;
+        for (const [id, modo, rotulo] of [
+            ['publicChartRain', 'precipitacao', 'precipitação'],
+            ['publicChartRainProbability', 'probabilidade', 'chance de chuva']
+        ]) {
+            const canvas = document.getElementById(id);
+            const cartao = canvas?.closest('.chart-card');
+            if (!cartao) continue;
+            const grafico = window.ClimaChuva?.criarGrafico({ canvas, janela, cores, modo, grupoSincronizacao: 'publico' });
+            if (!grafico) {
+                renderizarMensagemGrafico(cartao, `Sem dados de ${rotulo} para a janela consultada.`);
+                continue;
+            }
+            grafico.$zoomKind = 'rain';
+            graficos[id] = grafico;
         }
-        grafico.$zoomKind = 'rain';
-        graficos.publicChartRain = grafico;
     }
 
     function criarOpcoesGraficoPublico(janela, unidade) {

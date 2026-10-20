@@ -747,6 +747,8 @@ Projeto .NET 8 em camadas com ASP.NET Core Controllers. A aplicacao oferece modo
 
 `chuva.js` concentra recorte temporal, condicao atual, datasets, eixos e marcador. `public-weather.js` e `station-view.js` fornecem dados e guardam instancias; `zoom.js` reutiliza opcoes/plugins; `pdf-report.js` cria grafico offscreen com dados ja em memoria.
 
+No publico, `criarGrafico` recebe `modo: precipitacao` ou `probabilidade`, reutilizando o componente sem seletor mobile. O modo omitido preserva o privado/PDF. `publicChartRain` continua sendo o canvas de precipitacao; `publicChartRainProbability` completa a grade de seis graficos. Zoom copia as opcoes do grafico original e a visibilidade efetiva via `isDatasetVisible`, preservando callbacks de segmentos e dados nulos; resize e interacoes do grupo original nao sao reaplicados no overlay.
+
 Privacidade: geolocalizacao nasce de clique, a resposta privada fica em memoria, nao ha persistencia e a serializacao elimina coordenadas exatas.
 
 Testes: `ChartSeriesBuilderTests.cs` cobre ISO, virada de dia, nulo e entrada invalida; `FrontendBrowserTests.cs` cobre janela/sincronizacao e viewports; `FrontendStructureTests.cs` protege scripts, IDs, zoom e exportacao.

@@ -289,7 +289,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.DoesNotContain("Clima externo atual", textoPublico);
         Assert.Equal("Duração do dia: 11h15", await pagina.Locator("#publicSolarDuration").InnerTextAsync());
         Assert.Contains("min · desatualizado", textoPublico);
-        Assert.Equal(6, await pagina.Locator("#publicResults .chart-zoom-button").CountAsync());
+        Assert.Equal(7, await pagina.Locator("#publicResults .chart-zoom-button").CountAsync());
         Assert.Equal(1, await pagina.Locator("#publicChartRain").CountAsync());
 
         var botaoZoomPublico = pagina.Locator("#publicResults .chart-zoom-button").First;
@@ -353,7 +353,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
 
         Assert.Contains("São Paulo - SP", await pagina.Locator("#publicResults").InnerTextAsync());
         Assert.Equal("Última consulta desta sessão restaurada.", await pagina.Locator("#publicSearchStatus").InnerTextAsync());
-        Assert.Equal(6, await pagina.Locator("#publicResults .chart-zoom-button").CountAsync());
+        Assert.Equal(7, await pagina.Locator("#publicResults .chart-zoom-button").CountAsync());
         Assert.Equal(1, consultas);
     }
 
@@ -390,7 +390,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.Contains("Gramado - Rio Grande do Sul", await pagina.Locator("#publicResults").InnerTextAsync());
         Assert.NotNull(corpoCidade);
         Assert.Contains("\"latitude\":-29.3788", corpoCidade);
-        Assert.Equal(6, await pagina.Locator("#publicResults .chart-zoom-button").CountAsync());
+        Assert.Equal(7, await pagina.Locator("#publicResults .chart-zoom-button").CountAsync());
     }
 
     [Fact]
@@ -651,7 +651,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
             Assert.Equal(["Luz do dia", "Eventos solares"], documento.RootElement.GetProperty("solarDatasets").EnumerateArray().Select(item => item.GetString()).ToArray());
             Assert.Equal(["°C", "°C", "%", "hPa"], graficos.Select(grafico => grafico.GetProperty("unidade").GetString()).ToArray());
             var chuva = documento.RootElement.GetProperty("chuva");
-            Assert.Equal(["Precipitação observada", "Precipitação prevista", "Chance de chuva"], chuva.GetProperty("datasets").EnumerateArray().Select(item => item.GetString()).ToArray());
+            Assert.Equal(["Precipitação observada", "Precipitação prevista"], chuva.GetProperty("datasets").EnumerateArray().Select(item => item.GetString()).ToArray());
             Assert.Contains("yMilimetros", chuva.GetProperty("eixos").EnumerateArray().Select(item => item.GetString()));
             Assert.Contains("yProbabilidade", chuva.GetProperty("eixos").EnumerateArray().Select(item => item.GetString()));
             Assert.Equal("publico", chuva.GetProperty("grupo").GetString());
@@ -712,7 +712,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
             Assert.Equal(37, grafico.GetProperty("pontos").GetInt32());
             Assert.Equal(7, grafico.GetProperty("ticks").GetInt32());
         });
-        Assert.Equal(9, await pagina.Locator("#publicResults .chart-zoom-button").CountAsync());
+        Assert.Equal(10, await pagina.Locator("#publicResults .chart-zoom-button").CountAsync());
         Assert.Equal("static", await pagina.Locator("#publicSolarDuration").EvaluateAsync<string>("el => getComputedStyle(el).position"));
         Assert.True(await pagina.EvaluateAsync<bool>("() => document.documentElement.scrollWidth <= window.innerWidth + 1"));
     }
@@ -736,7 +736,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.WaitForSelectorAsync("#publicChartForecastUv", new() { State = WaitForSelectorState.Attached });
         var raiz = new DirectoryInfo(AppContext.BaseDirectory);
         while (raiz is not null && !File.Exists(Path.Combine(raiz.FullName, "EstacaoClimatica.sln"))) raiz = raiz.Parent;
-        var pastaEvidencias = Path.Combine(raiz?.FullName ?? AppContext.BaseDirectory, "outputs", "previsao-15-dias-2026-09-28");
+        var pastaEvidencias = Path.Combine(raiz?.FullName ?? AppContext.BaseDirectory, "outputs", "publico-consolidado-2026-10-20");
         Directory.CreateDirectory(pastaEvidencias);
         await pagina.ScreenshotAsync(new() { Path = Path.Combine(pastaEvidencias, "publico-1440x900.png"), FullPage = true });
 
@@ -775,7 +775,10 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.Equal(gradeLarga[0], gradeLarga[1]);
         Assert.Equal(gradeLarga[1], gradeLarga[2]);
         Assert.Equal(gradeLarga[3], gradeLarga[4]);
+        Assert.Equal(6, gradeLarga.Length);
+        Assert.Equal(gradeLarga[4], gradeLarga[5]);
         Assert.True(gradeLarga[3] > gradeLarga[0]);
+        Assert.True(await pagina.Locator(".public-metric-charts").EvaluateAsync<bool>("el => new Set([...el.children].map(card => Math.round(card.getBoundingClientRect().height))).size === 1"));
         Assert.Equal(3, await pagina.Locator(".public-forecast-charts").EvaluateAsync<int>("el => getComputedStyle(el).gridTemplateColumns.split(' ').length"));
 
         await pagina.Locator("[data-forecast-index='7']").FocusAsync();
@@ -831,6 +834,134 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.WaitForSelectorAsync("#publicChartForecastUv", new() { State = WaitForSelectorState.Attached });
         Assert.Equal(2, consultas);
         Assert.Contains("21.40°C", await pagina.Locator(".public-stats-grid").InnerTextAsync());
+    }
+
+    [Theory]
+    [InlineData(1440)]
+    [InlineData(1024)]
+    [InlineData(390)]
+    [InlineData(360)]
+    [InlineData(320)]
+    public async Task ModoPublico_SeisGraficosDevemSincronizarEPreservarSeriesNoZoom(int largura)
+    {
+        await using var contexto = await CriarContextoAsync(autorizarInterno: false);
+        var pagina = await contexto.NewPageAsync();
+        await pagina.SetViewportSizeAsync(largura, 844);
+        await pagina.RouteAsync("**/api/public-weather/cep/01001000", rota => rota.FulfillAsync(new()
+        {
+            Status = 200, ContentType = "application/json", Body = CriarPublicWeatherComPrevisaoJson()
+        }));
+        await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.GetByRole(AriaRole.Textbox, new() { Name = "CEP" }).FillAsync("01001000");
+        await pagina.GetByRole(AriaRole.Button, new() { Name = "Buscar" }).ClickAsync();
+        await pagina.WaitForFunctionAsync("() => !!Chart.getChart('publicChartRainProbability')");
+        Assert.Equal(6, await pagina.Locator(".public-metric-charts canvas").CountAsync());
+        Assert.Equal(0, await pagina.Locator("#publicResults .rain-chart-toggle").CountAsync());
+        Assert.True(await pagina.EvaluateAsync<bool>("""
+            () => {
+                const chuva = Chart.getChart('publicChartRain');
+                const chance = Chart.getChart('publicChartRainProbability');
+                const ids = ['publicChartTemperature', 'publicChartFeelsLike', 'publicChartHumidity',
+                    'publicChartPressure', 'publicChartRain', 'publicChartRainProbability'];
+                SincronizadorGraficos.sincronizarIndice('publico', 26);
+                return ids.every(id => Chart.getChart(id).getActiveElements()[0]?.index === 26)
+                    && ids.every(id => Chart.getChart(id).$marcadorAgora.indice === 24)
+                    && chuva.data.datasets.length === 2 && chance.data.datasets.length === 1
+                    && chuva.options.scales.yMilimetros.display && !chuva.options.scales.yProbabilidade.display
+                    && chance.options.scales.yProbabilidade.display && !chance.options.scales.yMilimetros.display
+                    && chance.data.datasets[0].data.length === 37
+                    && chance.data.datasets[0].data[0] === 20 && chance.data.datasets[0].data[5] === null;
+            }
+            """));
+
+        foreach (var id in new[] { "publicChartRain", "publicChartRainProbability", "publicChartForecastTemperature", "publicChartForecastRain", "publicChartForecastUv" })
+        {
+            var botao = pagina.Locator($"canvas#{id}").Locator("..").Locator(".chart-zoom-button");
+            await botao.ScrollIntoViewIfNeededAsync();
+            await pagina.EvaluateAsync("""
+                id => {
+                    const grafico = Chart.getChart(id);
+                    if (grafico.data.datasets.length > 1) {
+                        grafico.setDatasetVisibility(0, false);
+                        grafico.update('none');
+                    }
+                    window.posicaoAntesZoom = { x: scrollX, y: scrollY,
+                        carrossel: document.querySelector('.public-metric-charts').scrollLeft };
+                }
+                """, id);
+            await botao.ClickAsync();
+            await pagina.WaitForSelectorAsync(".plot-zoom-overlay");
+            Assert.True(await pagina.EvaluateAsync<bool>("""
+                id => {
+                    const origem = Chart.getChart(id);
+                    const zoom = Chart.getChart(document.querySelector('.plot--zoom'));
+                    return zoom.data.datasets.every((serie, indice) =>
+                        zoom.isDatasetVisible(indice) === origem.isDatasetVisible(indice)
+                        && serie.segment === origem.data.datasets[indice].segment
+                        && serie.borderColor === origem.data.datasets[indice].borderColor
+                        && JSON.stringify(serie.data) === JSON.stringify(origem.data.datasets[indice].data))
+                        && Object.keys(zoom.options.scales).join() === Object.keys(origem.options.scales).join()
+                        && zoom.$chavesSincronizacao.length === origem.$chavesSincronizacao.length
+                        && Math.abs(scrollY - window.posicaoAntesZoom.y) <= 1
+                        && document.querySelector('.public-metric-charts').scrollLeft === window.posicaoAntesZoom.carrossel;
+                }
+                """, id));
+            await pagina.Keyboard.PressAsync("Escape");
+            await pagina.WaitForSelectorAsync(".plot-zoom-overlay", new() { State = WaitForSelectorState.Detached });
+        }
+        Assert.True(await pagina.EvaluateAsync<bool>("() => document.documentElement.scrollWidth <= innerWidth + 1"));
+    }
+
+    [Theory]
+    [InlineData("precipitacao", "publicChartRain", "publicChartRainProbability", "precipitação")]
+    [InlineData("probabilidadeChuva", "publicChartRainProbability", "publicChartRain", "chance de chuva")]
+    public async Task ModoPublico_ChuvaSemDadosDeveTerEstadoVazioIndependente(string campo, string vazio, string disponivel, string rotulo)
+    {
+        await using var contexto = await CriarContextoAsync(autorizarInterno: false);
+        var pagina = await contexto.NewPageAsync();
+        var dados = JsonNode.Parse(CriarPublicWeatherComPrevisaoJson())!.AsObject();
+        dados["climaAtual"]!["temperatura"] = null;
+        dados["aqi"]!["valor"] = null;
+        foreach (var ponto in dados["previsaoCurtoPrazo"]!.AsArray()) ponto![campo] = null;
+        await pagina.RouteAsync("**/api/public-weather/cep/01001000", rota => rota.FulfillAsync(new()
+        {
+            Status = 200, ContentType = "application/json", Body = dados.ToJsonString()
+        }));
+        await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.GetByRole(AriaRole.Textbox, new() { Name = "CEP" }).FillAsync("01001000");
+        await pagina.GetByRole(AriaRole.Button, new() { Name = "Buscar" }).ClickAsync();
+        await pagina.WaitForFunctionAsync("id => !!Chart.getChart(id)", disponivel);
+        Assert.False(await pagina.EvaluateAsync<bool>("id => !!Chart.getChart(id)", vazio));
+        Assert.Contains($"Sem dados de {rotulo}", await pagina.Locator(".public-metric-charts").InnerTextAsync());
+        Assert.Equal("--", await pagina.Locator(".public-stats-grid .stats-card__value").First.InnerTextAsync());
+        Assert.Equal("--", await pagina.Locator(".public-card--aqi .stats-card__value").InnerTextAsync());
+    }
+
+    [Theory]
+    [InlineData(320)]
+    [InlineData(360)]
+    [InlineData(390)]
+    public async Task CardsCompartilhados_TextoLongoDeveFicarAbaixoDoTituloSemSobreporValor(int largura)
+    {
+        await using var contexto = await CriarContextoAsync();
+        var pagina = await CriarPaginaComDashboardMockadoAsync(contexto, []);
+        await pagina.SetViewportSizeAsync(largura, 844);
+        await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.WaitForSelectorAsync(".stats-card__header .stats-card__trend", new() { State = WaitForSelectorState.Attached });
+        Assert.True(await pagina.EvaluateAsync<bool>("""
+            () => [...document.querySelectorAll('.stats-card__header')].filter(header => header.getBoundingClientRect().width > 0).every(header => {
+                const titulo = header.querySelector('.stats-card__label');
+                const status = header.querySelector('.stats-card__trend');
+                if (!status || !titulo) return true;
+                status.textContent = 'Insalubre para grupos sensíveis com exposição prolongada';
+                const valor = header.closest('.stats-card').querySelector('.stats-card__value');
+                const t = titulo.getBoundingClientRect(), s = status.getBoundingClientRect(), v = valor.getBoundingClientRect();
+                return s.top >= t.bottom && v.top >= s.bottom
+                    && status.scrollWidth <= status.clientWidth + 1
+                    && s.right <= header.getBoundingClientRect().right + 1;
+            })
+            """));
+        Assert.True(await pagina.EvaluateAsync<bool>("() => document.documentElement.scrollWidth <= innerWidth + 1"));
     }
 
     [Fact]
@@ -1590,7 +1721,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.Equal("1 / -1", await pagina.Locator(".public-card--aqi").EvaluateAsync<string>("el => getComputedStyle(el).gridColumn"));
         Assert.Equal("x mandatory", await pagina.Locator(".public-metric-charts").EvaluateAsync<string>("el => getComputedStyle(el).scrollSnapType"));
         Assert.True(await pagina.EvaluateAsync<bool>("() => document.documentElement.scrollWidth <= innerWidth + 1"));
-        Assert.Equal(1, await pagina.Locator("#public-rain-container .rain-chart-toggle").CountAsync());
+        Assert.Equal(0, await pagina.Locator("#publicResults .rain-chart-toggle").CountAsync());
         Assert.Equal(200, await pagina.Locator("#publicChartRain").EvaluateAsync<double>("el => el.getBoundingClientRect().height"), 1);
         Assert.Equal("42", await pagina.Locator("#aqiIndicator .aqi-indicator__value").InnerTextAsync());
         var pontosSolaresPublicos = await pagina.EvaluateAsync<double[]>("""
@@ -1839,6 +1970,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         var sensacao = new JsonArray();
         var umidade = new JsonArray();
         var pressao = new JsonArray();
+        var chuva = new JsonArray();
         var inicio = new DateTime(2026, 6, 2, 16, 0, 0, DateTimeKind.Unspecified);
         for (var indice = 0; indice < 37; indice++)
         {
@@ -1847,6 +1979,13 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
             sensacao.Add(17.5 + (indice * 0.2));
             umidade.Add(72 - (indice * 0.5));
             pressao.Add(1019 - (indice * 0.1));
+            chuva.Add(new JsonObject
+            {
+                ["horario"] = inicio.AddHours(indice).ToString("yyyy-MM-dd'T'HH:mm"),
+                ["precipitacao"] = indice == 5 ? null : indice % 4 * 0.5,
+                ["probabilidadeChuva"] = indice == 5 ? null : 20 + indice,
+                ["codigoTempo"] = 3
+            });
         }
 
         raiz["seriesHorarias"] = new JsonObject
@@ -1873,6 +2012,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
             });
         }
         raiz["previsaoQuinzeDias"] = previsaoQuinzeDias;
+        raiz["previsaoCurtoPrazo"] = chuva;
         return raiz.ToJsonString();
     }
 

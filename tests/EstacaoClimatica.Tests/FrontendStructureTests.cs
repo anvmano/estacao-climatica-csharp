@@ -170,7 +170,7 @@ public sealed partial class TestesEstruturaInterface
         Assert.Contains("tipoDado: conjuntoDados.tipoDado", zoom);
         Assert.Contains("graficoOrigem.$zoomPlugins", zoom);
         Assert.Contains("graficoAmpliado.$marcadorAgora", zoom);
-        Assert.Contains("graficoOrigem.$zoomKind === 'rain'", zoom);
+        Assert.Contains("['rain', 'publicWeather', 'publicForecast'].includes(graficoOrigem.$zoomKind)", zoom);
         Assert.Contains("HORAS_OBSERVADAS = 24", chuva);
         Assert.Contains("HORAS_PREVISTAS = 12", chuva);
         Assert.Contains("label: 'Chance de chuva'", chuva);
@@ -263,8 +263,8 @@ public sealed partial class TestesEstruturaInterface
         Assert.Contains("weekly-heatmap__axis--corner", avancado);
         Assert.Contains("if (grafico === graficoOrigem) continue", sincronizacao);
         Assert.Contains("sincronizarIndice, limparGrupo", sincronizacao);
-        Assert.Contains("repeat(6, minmax(0, 1fr))", publicoCss);
-        Assert.Contains("nth-last-child(-n + 2)", publicoCss);
+        Assert.Contains("repeat(3, minmax(0, 1fr))", publicoCss);
+        Assert.Contains("publicChartRainProbability", publico);
     }
 
     [Fact]

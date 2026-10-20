@@ -69,7 +69,7 @@
         return { disponivel, chovendo, rotulo: !disponivel ? 'Condição atual indisponível' : chovendo ? 'Chovendo agora' : 'Sem chuva agora', precipitacao };
     }
 
-    function criarGrafico({ canvas, janela, graficoExistente, cores: paleta = {}, grupoSincronizacao = null }) {
+    function criarGrafico({ canvas, janela, graficoExistente, cores: paleta = {}, grupoSincronizacao = null, modo = null }) {
         if (graficoExistente) {
             window.SincronizadorGraficos?.desregistrar(graficoExistente);
             graficoExistente.destroy();
@@ -78,8 +78,11 @@
 
         const observada = janela.precipitacao.map((valor, indice) => janela.tipos[indice] === 'observado' ? valor : null);
         const prevista = janela.precipitacao.map((valor, indice) => janela.tipos[indice] === 'previsao' ? valor : null);
-        const probabilidade = janela.probabilidade.map((valor, indice) => janela.tipos[indice] === 'previsao' ? valor : null);
-        if (![...observada, ...prevista, ...probabilidade].some(valor => numeroOuNulo(valor) !== null)) return null;
+        const modoFixo = modo === 'precipitacao' || modo === 'probabilidade' ? modo : null;
+        const probabilidade = janela.probabilidade.map((valor, indice) => modoFixo || janela.tipos[indice] === 'previsao' ? valor : null);
+        const valores = modoFixo === 'precipitacao' ? [...observada, ...prevista]
+            : modoFixo === 'probabilidade' ? probabilidade : [...observada, ...prevista, ...probabilidade];
+        if (!valores.some(valor => numeroOuNulo(valor) !== null)) return null;
 
         const corChuva = paleta.blue || '#38bdf8';
         const corPrevisao = 'rgba(125, 211, 252, 0.48)';
@@ -92,8 +95,8 @@
                 datasets: [
                     { label: 'Precipitação observada', data: observada, yAxisID: 'yMilimetros', backgroundColor: `${corChuva}aa`, borderColor: corChuva, borderWidth: 1, borderRadius: 3, tipoDado: 'observado', order: 2 },
                     { label: 'Precipitação prevista', data: prevista, yAxisID: 'yMilimetros', backgroundColor: corPrevisao, borderColor: corPrevisao, borderWidth: 1, borderRadius: 3, tipoDado: 'previsao', order: 2 },
-                    { type: 'line', label: 'Chance de chuva', data: probabilidade, yAxisID: 'yProbabilidade', borderColor: corProbabilidade, backgroundColor: 'transparent', borderDash: [6, 4], borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 18, spanGaps: false, tipoDado: 'previsao', order: 1, hidden: movel }
-                ]
+                    { type: 'line', label: 'Chance de chuva', data: probabilidade, yAxisID: 'yProbabilidade', borderColor: corProbabilidade, backgroundColor: 'transparent', borderDash: modoFixo ? undefined : [6, 4], segment: modoFixo ? { borderDash: contexto => janela.tipos[contexto.p1DataIndex] === 'previsao' ? [6, 4] : undefined } : undefined, borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 18, spanGaps: false, tipoDado: modoFixo ? 'probabilidade' : 'previsao', order: 1, hidden: !modoFixo && movel }
+                ].filter(serie => !modoFixo || (modoFixo === 'probabilidade' ? serie.yAxisID === 'yProbabilidade' : serie.yAxisID === 'yMilimetros'))
             },
             options: obterOpcoes({ janela, cores: paleta }),
             plugins: [pluginMarcadorAgoraChuva, pluginControleResponsivoChuva]
@@ -101,6 +104,7 @@
         grafico.$indiceAgora = janela.indiceAgora;
         grafico.$marcadorAgora = { indice: janela.indiceAgora };
         grafico.$janelaChuva = janela;
+        grafico.$modoChuvaFixo = modoFixo;
         grafico.$zoomPlugins = [pluginMarcadorAgoraChuva];
         grafico.$chavesSincronizacao = [...janela.horarios];
         grafico.$modoChuvaMovel = 'precipitacao';
@@ -148,6 +152,13 @@
         grafico.options.scales.x.ticks.maxTicksLimit = movel ? 5 : 13;
         grafico.options.scales.yMilimetros.title.display = !movel;
         grafico.options.scales.yProbabilidade.title.display = !movel;
+
+        if (grafico.$modoChuvaFixo) {
+            grafico.options.scales.yMilimetros.display = grafico.$modoChuvaFixo === 'precipitacao';
+            grafico.options.scales.yProbabilidade.display = grafico.$modoChuvaFixo === 'probabilidade';
+            removerControleMovel(grafico);
+            return;
+        }
 
         if (!movel) {
             grafico.data.datasets.forEach(serie => { serie.hidden = false; });

@@ -133,6 +133,10 @@ function tratarAmpliacao(cartao, disparador = document.activeElement) {
         options: obterOpcoesZoom(graficoOrigem),
         plugins
     });
+    graficoAmpliado.$modoChuvaFixo = graficoOrigem.$modoChuvaFixo;
+    graficoAmpliado.$modoChuvaMovel = graficoOrigem.$modoChuvaMovel;
+    graficoAmpliado.$janelaChuva = graficoOrigem.$janelaChuva;
+    graficoAmpliado.$chavesSincronizacao = [...(graficoOrigem.$chavesSincronizacao || [])];
     if (graficoOrigem.$solarDayTimes) graficoAmpliado.$solarDayTimes = graficoOrigem.$solarDayTimes;
     if (graficoOrigem.$faixaConforto) {
         graficoAmpliado.$faixaConforto = graficoOrigem.$faixaConforto;
@@ -165,7 +169,9 @@ document.addEventListener('keydown', eventoLocal => {
 function copiarDadosGrafico(grafico) {
     return {
         labels: grafico.data.labels ? [...grafico.data.labels] : undefined,
-        datasets: grafico.data.datasets.map(conjuntoDados => ({
+        datasets: grafico.data.datasets.map((conjuntoDados, indice) => ({
+            ...conjuntoDados,
+            hidden: !grafico.isDatasetVisible(indice),
             type: conjuntoDados.type,
             label: conjuntoDados.label,
             data: Array.isArray(conjuntoDados.data)
@@ -200,38 +206,19 @@ function copiarDadosGrafico(grafico) {
 function obterOpcoesZoom(graficoOrigem) {
     if (graficoOrigem.$zoomKind === 'solarHistory') return obterOpcoesHistoricoSolar({ tickSize: 12, labelSize: 12 });
     if (graficoOrigem.$zoomKind === 'solarToday' || graficoOrigem.$solarDayTimes) return obterOpcoesSolarDia({ tickSize: 12, labelSize: 12 });
-    if (graficoOrigem.$zoomKind === 'rain') return mesclarRecursivamente(
-        window.ClimaChuva.obterOpcoes({ janela: graficoOrigem.$janelaChuva, cores }),
-        { animation: false, maintainAspectRatio: false }
-    );
+    if (['rain', 'publicWeather', 'publicForecast'].includes(graficoOrigem.$zoomKind)) {
+        const opcoes = mesclarRecursivamente(graficoOrigem.config.options, {
+            animation: false,
+            maintainAspectRatio: false
+        });
+        // O zoom preserva a selecao de series, sem recriar o seletor responsivo.
+        delete opcoes.onResize;
+        delete opcoes.onHover;
+        delete opcoes.onClick;
+        return opcoes;
+    }
 
     const unidade = graficoOrigem.options?.scales?.y?.title?.text || '';
-
-    if (graficoOrigem.$zoomKind === 'publicWeather') {
-        return mesclarRecursivamente(padroesGrafico, {
-            animation: false,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    labels: { color: cores.text, boxWidth: 18, boxHeight: 2, padding: 12 }
-                },
-                tooltip: {
-                    filter: contexto => !(contexto.dataset.tipoDado === 'previsao' && contexto.dataIndex <= contexto.chart.$marcadorAgora?.indice),
-                    callbacks: {
-                        label: contexto => `${contexto.dataset.label}: ${Number(contexto.parsed.y).toFixed(2)}${unidade}`
-                    }
-                }
-            },
-            scales: {
-                x: { ticks: { font: { size: 12 } } },
-                y: {
-                    ticks: { font: { size: 12 } },
-                    title: { display: Boolean(unidade), text: unidade, color: cores.text }
-                }
-            }
-        });
-    }
 
     return mesclarRecursivamente(padroesGrafico, {
         animation: false,
