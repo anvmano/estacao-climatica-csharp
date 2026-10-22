@@ -88,17 +88,30 @@
         const corPrevisao = 'rgba(125, 211, 252, 0.48)';
         const corProbabilidade = paleta.purple || '#a78bfa';
         const movel = estaEmTelaMovel();
+        const probabilidadeObservada = probabilidade.map((valor, indice) => janela.tipos[indice] === 'observado' ? valor : null);
+        const probabilidadePrevista = probabilidade.map((valor, indice) => janela.tipos[indice] === 'previsao' ? valor : null);
+        const valorTransicao = probabilidadeObservada[janela.indiceAgora];
+        if (numeroOuNulo(valorTransicao) !== null && probabilidadePrevista.some(valor => numeroOuNulo(valor) !== null)) {
+            probabilidadePrevista[janela.indiceAgora] = valorTransicao;
+        }
+        const serieProbabilidadePublica = {
+            type: 'line', yAxisID: 'yProbabilidade', backgroundColor: 'transparent',
+            borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 18, spanGaps: false
+        };
         const grafico = new Chart(canvas.getContext('2d'), {
             type: 'bar',
             data: {
                 labels: janela.horarios.map(formatarHora),
-                datasets: [
+                datasets: modoFixo === 'probabilidade' ? [
+                    { ...serieProbabilidadePublica, label: 'Medido', data: probabilidadeObservada, borderColor: corProbabilidade, tipoDado: 'observado' },
+                    { ...serieProbabilidadePublica, label: 'Previsão', data: probabilidadePrevista, borderColor: 'rgba(196, 181, 253, 0.58)', borderDash: [6, 4], tipoDado: 'previsao' }
+                ] : [
                     { label: 'Precipitação observada', data: observada, yAxisID: 'yMilimetros', backgroundColor: `${corChuva}aa`, borderColor: corChuva, borderWidth: 1, borderRadius: 3, tipoDado: 'observado', order: 2 },
                     { label: 'Precipitação prevista', data: prevista, yAxisID: 'yMilimetros', backgroundColor: corPrevisao, borderColor: corPrevisao, borderWidth: 1, borderRadius: 3, tipoDado: 'previsao', order: 2 },
                     { type: 'line', label: 'Chance de chuva', data: probabilidade, yAxisID: 'yProbabilidade', borderColor: corProbabilidade, backgroundColor: 'transparent', borderDash: modoFixo ? undefined : [6, 4], segment: modoFixo ? { borderDash: contexto => janela.tipos[contexto.p1DataIndex] === 'previsao' ? [6, 4] : undefined } : undefined, borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 18, spanGaps: false, tipoDado: modoFixo ? 'probabilidade' : 'previsao', order: 1, hidden: !modoFixo && movel }
                 ].filter(serie => !modoFixo || (modoFixo === 'probabilidade' ? serie.yAxisID === 'yProbabilidade' : serie.yAxisID === 'yMilimetros'))
             },
-            options: obterOpcoes({ janela, cores: paleta }),
+            options: obterOpcoes({ janela, cores: paleta, modo: modoFixo }),
             plugins: [pluginMarcadorAgoraChuva, pluginControleResponsivoChuva]
         });
         grafico.$indiceAgora = janela.indiceAgora;
@@ -114,17 +127,18 @@
         return grafico;
     }
 
-    function obterOpcoes({ janela = null, cores: paleta = window.cores || {} } = {}) {
+    function obterOpcoes({ janela = null, cores: paleta = window.cores || {}, modo = null } = {}) {
         const movel = estaEmTelaMovel();
         const limiteTicks = movel ? 5 : 13;
         const opcoes = mesclarRecursivamente(padroesGrafico, {
-            onResize: grafico => sincronizarModoResponsivo(grafico),
+            onResize: grafico => sincronizarModoResponsivo(grafico, modo),
             interaction: { mode: 'index', intersect: false, axis: 'x' },
             plugins: {
-                legend: { display: !movel, labels: { color: paleta.text || cores.text, boxWidth: 12, padding: 12 } },
+                legend: { display: modo === 'probabilidade' || !movel, labels: { color: paleta.text || cores.text, boxWidth: 12, padding: 12 } },
                 tooltip: {
                     mode: 'index', intersect: false,
-                    filter: contexto => numeroOuNulo(contexto.raw) !== null,
+                    filter: contexto => numeroOuNulo(contexto.raw) !== null
+                        && !(modo === 'probabilidade' && contexto.dataset.tipoDado === 'previsao' && contexto.dataIndex <= janela.indiceAgora),
                     callbacks: {
                         title: itens => janela?.horarios?.[itens[0]?.dataIndex] ? formatarDataHora(janela.horarios[itens[0].dataIndex]) : itens[0]?.label || '--',
                         label: contexto => contexto.dataset.yAxisID === 'yProbabilidade' ? `${contexto.dataset.label}: ${Number(contexto.parsed.y).toFixed(0)}%` : `${contexto.dataset.label}: ${Number(contexto.parsed.y).toFixed(1)} mm`
@@ -134,7 +148,7 @@
             scales: {
                 x: { stacked: true, ticks: { maxTicksLimit: limiteTicks } },
                 yMilimetros: { type: 'linear', position: 'left', beginAtZero: true, display: true, title: { display: !movel, text: 'mm', color: paleta.text || cores.text }, ticks: { color: paleta.text || cores.text, callback: valor => `${valor} mm` }, grid: { color: paleta.grid || cores.grid } },
-                yProbabilidade: { type: 'linear', position: 'right', min: 0, max: 100, display: !movel, title: { display: !movel, text: '%', color: paleta.text || cores.text }, ticks: { color: paleta.text || cores.text, callback: valor => `${valor}%` }, grid: { drawOnChartArea: false } }
+                yProbabilidade: { type: 'linear', position: modo === 'probabilidade' ? 'left' : 'right', min: 0, max: 100, display: !movel, title: { display: !movel, text: '%', color: paleta.text || cores.text }, ticks: { color: paleta.text || cores.text, callback: valor => `${valor}%` }, grid: { drawOnChartArea: false } }
             }
         });
         delete opcoes.scales.y;
@@ -145,17 +159,17 @@
         return !!window.matchMedia?.(CONSULTA_MOVEL)?.matches;
     }
 
-    function sincronizarModoResponsivo(grafico) {
+    function sincronizarModoResponsivo(grafico, modo = grafico?.$modoChuvaFixo) {
         if (!grafico?.data?.datasets || !grafico.options?.scales) return;
         const movel = estaEmTelaMovel();
-        grafico.options.plugins.legend.display = !movel;
+        grafico.options.plugins.legend.display = modo === 'probabilidade' || !movel;
         grafico.options.scales.x.ticks.maxTicksLimit = movel ? 5 : 13;
         grafico.options.scales.yMilimetros.title.display = !movel;
         grafico.options.scales.yProbabilidade.title.display = !movel;
 
-        if (grafico.$modoChuvaFixo) {
-            grafico.options.scales.yMilimetros.display = grafico.$modoChuvaFixo === 'precipitacao';
-            grafico.options.scales.yProbabilidade.display = grafico.$modoChuvaFixo === 'probabilidade';
+        if (modo) {
+            grafico.options.scales.yMilimetros.display = modo === 'precipitacao';
+            grafico.options.scales.yProbabilidade.display = modo === 'probabilidade';
             removerControleMovel(grafico);
             return;
         }

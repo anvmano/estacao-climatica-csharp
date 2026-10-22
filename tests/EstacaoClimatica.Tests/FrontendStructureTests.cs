@@ -238,7 +238,7 @@ public sealed partial class TestesEstruturaInterface
         Assert.Contains("HORAS_OBSERVADAS = 24", chuva);
         Assert.Contains("HORAS_PREVISTAS = 12", chuva);
         Assert.Contains("CONSULTA_MOVEL = '(max-width: 640px)'", chuva);
-        Assert.Contains("onResize: grafico => sincronizarModoResponsivo(grafico)", chuva);
+        Assert.Contains("onResize: grafico => sincronizarModoResponsivo(grafico, modo)", chuva);
         Assert.Contains("aria-pressed=\"true\">Precipitação", chuva);
         Assert.Contains("aria-pressed=\"false\">Chance", chuva);
         Assert.Contains("window.ClimaChuva", chuva);

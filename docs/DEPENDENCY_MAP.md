@@ -5,12 +5,20 @@
 ```mermaid
 graph TD
     Browser["Browser / app.js + scripts"] --> Static["wwwroot/index.html/style.css/styles/pdf-report.css/app.js/scripts/vendor"]
-    Browser --> Api["GET /api/dashboard"]
-    Browser --> ChatApi["POST /api/chat"]
-    Browser --> Health["GET /api/health"]
+    Browser --> Publico["/api/public-weather/* sem login"]
+    Browser --> Auth["Firebase Auth + token autorizado"]
+    Auth --> Api["GET /api/dashboard"]
+    Auth --> ChatApi["POST /api/chat"]
+    Browser --> Health["GET /api/health sem Firebase"]
+
+    Publico --> PublicWeatherController["PublicWeatherController"]
+    PublicWeatherController --> PublicWeatherService["ServicoClimaPublico"]
+    PublicWeatherService --> ExternalApis["BrasilAPI / ViaCEP / Open-Meteo"]
+    Auth --> QueryApi["Consultas e exportacoes /api"]
+    QueryApi --> QueryController["ClimateQueryController"]
+    QueryController --> QueryService["ServicoConsultasClimaticas"]
 
     Api --> Controller["DashboardController"]
-    Health --> Controller
     Controller --> IService["IServicoDashboardClimatico"]
     IService --> Service["ServicoDashboardClimatico"]
 
@@ -137,7 +145,7 @@ Valida Firebase ID token para as rotas internas e retorna o e-mail normalizado u
 
 ### auth.js
 
-Inicializa Firebase Auth, controla login/logout e adiciona Bearer token às chamadas de dashboard e chat.
+Inicializa Firebase Auth, controla login/logout, verifica `/api/internal-access` e adiciona Bearer token às chamadas internas.
 
 ### public-weather.js
 
@@ -174,7 +182,7 @@ Impacto da alteracao: Critico.
 
 ### AiOptions.cs
 
-Responsabilidade: representar configuracao de IA/Gemini e App Check sem expor segredo no frontend.
+Responsabilidade: representar configuracao de IA/Gemini sem expor segredo no frontend. As opcoes de App Check ainda nao sao aplicadas.
 
 Dependencias diretas: nenhuma.
 
@@ -624,13 +632,12 @@ sequenceDiagram
     participant Builders as Builders Application
 
     Browser->>JS: DOMContentLoaded
-    JS->>API: GET /api/dashboard?date=dd-MM-yyyy
+    JS->>Browser: Mostra modo publico; aguarda autorizacao Firebase Auth
+    Browser->>JS: Token de conta autorizada
+    JS->>API: GET /api/dashboard?date=dd-MM-yyyy com Bearer token
     API->>Service: ObterDashboardAsync(date)
-    Service->>Repo: ObterDadosDashboardAsync()
-    Repo->>Firebase: ObterCaminhoAsync(Room)
-    Repo->>Firebase: ObterCaminhoAsync(Solar)
-    Repo->>Firebase: ObterCaminhoAsync(Aquarium)
-    Repo->>Firebase: ObterCaminhoAsync(LivingRoom)
+    Service->>Repo: ObterDadosDashboardAsync(data selecionada)
+    Repo->>Firebase: Consulta quatro ramos; clima por datas necessarias, solar completo
     Firebase-->>Repo: JsonElement?
     Repo-->>Service: DadosDashboardFirebase
     Service->>Builders: MontarQuarto/Sala/Aquario/Solar
@@ -643,7 +650,7 @@ sequenceDiagram
     Browser->>JS: Pergunta no assistente
     JS->>ChatAPI: POST /api/chat
     ChatAPI->>Chat: ResponderAsync(question, activeTab, selectedDate)
-    Chat->>Repo: ObterDadosDashboardAsync()
+    Chat->>Repo: Consulta dados necessarios para a pergunta
     Chat->>AI: GerarTextoAsync(prompt) quando IA habilitada
     Chat-->>ChatAPI: ChatResponse
     ChatAPI-->>JS: JSON

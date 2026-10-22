@@ -866,7 +866,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
                 SincronizadorGraficos.sincronizarIndice('publico', 26);
                 return ids.every(id => Chart.getChart(id).getActiveElements()[0]?.index === 26)
                     && ids.every(id => Chart.getChart(id).$marcadorAgora.indice === 24)
-                    && chuva.data.datasets.length === 2 && chance.data.datasets.length === 1
+                    && chuva.data.datasets.length === 2 && chance.data.datasets.length === 2
                     && chuva.options.scales.yMilimetros.display && !chuva.options.scales.yProbabilidade.display
                     && chance.options.scales.yProbabilidade.display && !chance.options.scales.yMilimetros.display
                     && chance.data.datasets[0].data.length === 37
@@ -910,6 +910,138 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
             await pagina.WaitForSelectorAsync(".plot-zoom-overlay", new() { State = WaitForSelectorState.Detached });
         }
         Assert.True(await pagina.EvaluateAsync<bool>("() => document.documentElement.scrollWidth <= innerWidth + 1"));
+    }
+
+    [Theory]
+    [InlineData(1440, 900)]
+    [InlineData(390, 844)]
+    [InlineData(320, 568)]
+    public async Task ChancePublica_DeveSepararMedidoPrevisaoEManterEixoTooltipSincronizacaoEZoom(int largura, int altura)
+    {
+        await using var contexto = await CriarContextoAsync(autorizarInterno: false, toque: largura <= 640);
+        var pagina = await contexto.NewPageAsync();
+        await pagina.SetViewportSizeAsync(largura, altura);
+        await pagina.RouteAsync("**/api/public-weather/cep/01001000", rota => rota.FulfillAsync(new()
+        {
+            Status = 200, ContentType = "application/json", Body = CriarPublicWeatherComPrevisaoJson()
+        }));
+        await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.GetByRole(AriaRole.Textbox, new() { Name = "CEP" }).FillAsync("01001000");
+        await pagina.GetByRole(AriaRole.Button, new() { Name = "Buscar" }).ClickAsync();
+        await pagina.WaitForFunctionAsync("() => !!Chart.getChart('publicChartRainProbability')");
+        Assert.True(await pagina.EvaluateAsync<bool>("""
+            () => {
+                const grafico = Chart.getChart('publicChartRainProbability');
+                const [medido, previsto] = grafico.data.datasets;
+                const filtro = grafico.options.plugins.tooltip.filter;
+                return grafico.data.labels.length === 37 && grafico.$indiceAgora === 24
+                    && medido.label === 'Medido' && previsto.label === 'Previsão'
+                    && medido.data.length === 37 && previsto.data.length === 37
+                    && medido.data.slice(25).every(valor => valor === null)
+                    && previsto.data.slice(0, 24).every(valor => valor === null)
+                    && previsto.data.slice(25).filter(valor => valor !== null).length === 12
+                    && medido.data[5] === null && previsto.data[5] === null
+                    && medido.data[24] === 44 && previsto.data[24] === 44
+                    && !medido.borderDash?.length && previsto.borderDash.join() === '6,4'
+                    && medido.borderColor === '#a78bfa' && previsto.borderColor === 'rgba(196, 181, 253, 0.58)'
+                    && grafico.options.scales.yProbabilidade.position === 'left'
+                    && grafico.options.scales.yProbabilidade.min === 0 && grafico.options.scales.yProbabilidade.max === 100
+                    && grafico.options.plugins.legend.display && grafico.isDatasetVisible(0) && grafico.isDatasetVisible(1)
+                    && filtro({ raw: 44, dataset: medido, dataIndex: 24 })
+                    && !filtro({ raw: 44, dataset: previsto, dataIndex: 24 })
+                    && filtro({ raw: 45, dataset: previsto, dataIndex: 25 })
+                    && !filtro({ raw: null, dataset: medido, dataIndex: 5 });
+            }
+            """));
+        var canvas = pagina.Locator("#publicChartRainProbability");
+        await canvas.ScrollIntoViewIfNeededAsync();
+        // Pontos afastados evitam acionar o zoom por duplo toque no celular.
+        foreach (var indice in new[] { 24, 34 })
+        {
+            var ponto = await pagina.EvaluateAsync<float[]>("""
+                indice => {
+                    const grafico = Chart.getChart('publicChartRainProbability');
+                    const elemento = grafico.getDatasetMeta(indice <= 24 ? 0 : 1).data[indice];
+                    const retangulo = grafico.canvas.getBoundingClientRect();
+                    return [elemento.x * retangulo.width / grafico.width, elemento.y * retangulo.height / grafico.height];
+                }
+                """, indice);
+            if (largura <= 640) await canvas.TapAsync(new() { Position = new() { X = ponto[0], Y = ponto[1] } });
+            else await canvas.HoverAsync(new() { Position = new() { X = ponto[0], Y = ponto[1] } });
+            try { await pagina.WaitForFunctionAsync("""
+                indice => ['publicChartTemperature', 'publicChartFeelsLike', 'publicChartHumidity',
+                    'publicChartPressure', 'publicChartRain', 'publicChartRainProbability']
+                    .every(id => Chart.getChart(id).getActiveElements()[0]?.index === indice)
+                """, indice, new() { Timeout = 5000 }); }
+            catch (TimeoutException)
+            {
+                throw new Xunit.Sdk.XunitException(await pagina.EvaluateAsync<string>("""
+                    () => JSON.stringify({ graficos: [...document.querySelectorAll('.public-metric-charts canvas')].map(canvas => ({
+                        id: canvas.id, ativos: Chart.getChart(canvas).getActiveElements().map(p => p.index),
+                        retangulo: canvas.getBoundingClientRect().toJSON()
+                    })), scroll: [scrollX, scrollY] })
+                    """));
+            }
+            Assert.Equal(indice == 24 ? "Medido" : "Previsão", await pagina.EvaluateAsync<string>("() => Chart.getChart('publicChartRainProbability').tooltip.dataPoints.map(item => item.dataset.label).join()"));
+        }
+        var raiz = new DirectoryInfo(AppContext.BaseDirectory);
+        while (raiz is not null && !File.Exists(Path.Combine(raiz.FullName, "EstacaoClimatica.sln"))) raiz = raiz.Parent;
+        var pasta = Path.Combine(raiz!.FullName, "outputs", "chance-chuva-2026-10-22", "depois");
+        Directory.CreateDirectory(pasta);
+        await canvas.Locator("..").ScreenshotAsync(new() { Path = Path.Combine(pasta, $"chance-{largura}x{altura}.png") });
+        await canvas.Locator("..").Locator(".chart-zoom-button").ClickAsync();
+        await pagina.WaitForSelectorAsync(".plot-zoom-overlay");
+        Assert.True(await pagina.EvaluateAsync<bool>("""
+            () => {
+                const zoom = Chart.getChart(document.querySelector('.plot--zoom'));
+                return zoom.data.datasets.map(serie => serie.label).join() === 'Medido,Previsão'
+                    && zoom.data.datasets[1].borderDash.join() === '6,4'
+                    && zoom.options.scales.yProbabilidade.position === 'left'
+                    && zoom.options.plugins.legend.display
+                    && !zoom.options.plugins.tooltip.filter({ raw: 44, dataset: zoom.data.datasets[1], dataIndex: 24 });
+            }
+            """));
+        await pagina.ScreenshotAsync(new() { Path = Path.Combine(pasta, $"zoom-{largura}x{altura}.png") });
+        await pagina.Keyboard.PressAsync("Escape");
+        Assert.True(await pagina.EvaluateAsync<bool>("() => document.documentElement.scrollWidth <= innerWidth + 1"));
+    }
+
+    [Fact]
+    public async Task ChancePublica_TransicaoDeveExigirValorAtualEPrevisaoValidaSemAlterarModoCombinado()
+    {
+        await using var contexto = await CriarContextoAsync(autorizarInterno: false);
+        var pagina = await contexto.NewPageAsync();
+        await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.WaitForFunctionAsync("() => !!window.ClimaChuva && !!window.Chart");
+        Assert.True(await pagina.EvaluateAsync<bool>("""
+            () => {
+                const canvas = document.createElement('canvas');
+                document.body.append(canvas);
+                for (const [atual, futuro, transicao] of [[0, 50, 0], [null, 50, null], [20, null, null], [null, null, null]]) {
+                    const janela = ClimaChuva.montarJanela([
+                        { horario: '2026-06-03T15:00', probabilidadeChuva: 10, precipitacao: 0 },
+                        { horario: '2026-06-03T16:00', probabilidadeChuva: atual, precipitacao: 0 },
+                        { horario: '2026-06-03T17:00', probabilidadeChuva: futuro, precipitacao: 0 }
+                    ], '2026-06-03T16:00');
+                    const grafico = ClimaChuva.criarGrafico({ canvas, janela, modo: 'probabilidade' });
+                    const correto = grafico.data.datasets[0].data[1] === atual
+                        && grafico.data.datasets[1].data[1] === transicao
+                        && grafico.data.datasets[1].data[2] === futuro;
+                    grafico.destroy();
+                    if (!correto) return false;
+                    const combinado = ClimaChuva.criarGrafico({ canvas, janela });
+                    const preservado = combinado.data.datasets.map(serie => serie.label).join()
+                        === 'Precipitação observada,Precipitação prevista,Chance de chuva'
+                        && combinado.options.scales.yProbabilidade.position === 'right'
+                        && combinado.data.datasets[2].data[1] === null
+                        && combinado.data.datasets[2].data[2] === futuro;
+                    combinado.destroy();
+                    if (!preservado) return false;
+                }
+                canvas.remove();
+                return true;
+            }
+            """));
     }
 
     [Theory]
@@ -1039,6 +1171,26 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
             Assert.True(documentoClima.RootElement.TryGetProperty("previsaoCurtoPrazo", out _));
         }
         Assert.Contains("Chuva · 24h + previsão 12h", await paginaPrivada.EvaluateAsync<string>("() => montarRelatorioPdf().cartoesGraficos.map(item => item.label).join('|')"));
+        Assert.True(await paginaPrivada.EvaluateAsync<bool>("""
+            () => {
+                const privado = Chart.getChart('plotRain');
+                const rotulos = 'Precipitação observada,Precipitação prevista,Chance de chuva';
+                if (privado.data.datasets.map(serie => serie.label).join() !== rotulos
+                    || privado.options.scales.yProbabilidade.position !== 'right') return false;
+                const criar = ClimaChuva.criarGrafico;
+                let preservado = false;
+                ClimaChuva.criarGrafico = opcoes => {
+                    const grafico = criar(opcoes);
+                    preservado = !opcoes.modo && grafico.data.datasets.map(serie => serie.label).join() === rotulos
+                        && grafico.options.scales.yProbabilidade.position === 'right'
+                        && JSON.stringify(grafico.data.datasets.map(serie => serie.data))
+                            === JSON.stringify(privado.data.datasets.map(serie => serie.data));
+                    return grafico;
+                };
+                try { return criarImagemChuvaPdf().startsWith('data:image/png') && preservado; }
+                finally { ClimaChuva.criarGrafico = criar; }
+            }
+            """));
     }
 
     [Fact]
@@ -2184,7 +2336,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         return dashboard.ToJsonString();
     }
 
-    private static async Task<IBrowserContext> CriarContextoAsync(bool autorizarInterno = true, string? emailTeste = null)
+    private static async Task<IBrowserContext> CriarContextoAsync(bool autorizarInterno = true, string? emailTeste = null, bool toque = false)
     {
         var navegador = await ObterNavegadorCompartilhadoAsync();
 
@@ -2192,13 +2344,13 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         IBrowserContext contexto;
         try
         {
-            contexto = await navegador.NewContextAsync(new() { AcceptDownloads = true });
+            contexto = await navegador.NewContextAsync(new() { AcceptDownloads = true, HasTouch = toque });
         }
         catch (PlaywrightException)
         {
             await ReiniciarNavegadorCompartilhadoAsync();
             navegador = await ObterNavegadorCompartilhadoAsync();
-            contexto = await navegador.NewContextAsync(new() { AcceptDownloads = true });
+            contexto = await navegador.NewContextAsync(new() { AcceptDownloads = true, HasTouch = toque });
         }
         if (!string.IsNullOrWhiteSpace(emailTeste))
         {

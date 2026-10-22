@@ -2,7 +2,7 @@
 
 ## Fonte da verdade
 
-O comportamento é derivado de `scripts/external/external-weather-service.js`, `scripts/external/browser-location-service.js` e `scripts/views/public-weather-view.js` do projeto Web original.
+O contrato desta versão é implementado por `PublicWeatherController`, `ServicoClimaPublico` e `wwwroot/scripts/public-weather.js`. Os arquivos do projeto Web original serviram de referência histórica e ficam fora deste repositório.
 
 ## Endpoints C#/.NET
 
@@ -13,7 +13,7 @@ POST /api/public-weather/city
 GET /api/public-weather/location?latitude={lat}&longitude={lon}&precisao={metros}
 ```
 
-O modo público não depende do seletor de data do dashboard interno. A data `03/06/2026` continua obrigatória para o dashboard, gráficos, tabelas, exportações e chat que dependem da data selecionada.
+O modo público não depende do seletor de data do dashboard interno. `03/06/2026` é a data fixa usada em testes de regressão; no dashboard, `date` é opcional e sua ausência usa a data atual.
 
 ## Fluxo por CEP
 

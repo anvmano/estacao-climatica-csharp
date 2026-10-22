@@ -10,7 +10,7 @@ O sistema também oferece um modo público sem login, com consulta por CEP, cida
 - Acesso à internet para consultar o Firebase Realtime Database
 - Navegador moderno
 - Bibliotecas de frontend já versionadas em `src/EstacaoClimatica.Web/wwwroot/vendor`
-- Microsoft Edge/Chromium disponível para os testes Playwright de frontend
+- Chromium do Playwright, Google Chrome ou Microsoft Edge disponível para os testes de frontend
 
 ## Estrutura
 
@@ -76,7 +76,7 @@ Configurações migradas:
 - `InternalAccess:AuthorizedEmails`
 - `Colors`
 
-O frontend usa Firebase Auth para login Google opcional. Todas as rotas internas em `/api`, incluindo dashboard, chat e consultas climaticas, validam o Firebase ID token no backend e aceitam somente os e-mails configurados em `InternalAccess:AuthorizedEmails`. Apenas `/api/health` e `/api/public-weather/*` sao anonimas.
+O frontend usa Firebase Auth para login Google no painel interno. Com `InternalAccess:Enforce=true`, as rotas internas em `/api`, incluindo dashboard, chat, consultas climáticas e `/api/internal-access`, exigem Firebase ID token de uma conta configurada em `InternalAccess:AuthorizedEmails`. `/api/health` e `/api/public-weather/*` são anônimas. O domínio de execução também precisa estar autorizado no Firebase Authentication.
 
 Após o login, o frontend confirma a permissão em `/api/internal-access` antes de abrir o painel interno. As rotas de clima público aceitam até 60 requisições por minuto para cada IP visto pelo servidor; o excesso recebe HTTP 429. A busca por cidade aceita de 2 a 100 caracteres.
 
@@ -123,7 +123,7 @@ A data da API usa o mesmo formato do Firebase: `dd-MM-yyyy`. Os dez endpoints de
 dotnet test EstacaoClimatica.sln
 ```
 
-Os testes incluem serviços e controllers dos dez endpoints de consulta, autorização HTTP, limite de requisições públicas, proteção de fórmulas no CSV, qualidade dos sensores, validação estrutural do frontend e Playwright com navegador real para renderização DOM, acessibilidade, navegação, tabelas e downloads PDF/JSON. A última execução na cópia pública aprovou os 214 testes da suíte.
+Os testes incluem serviços e controllers dos dez endpoints de consulta, autorização HTTP, limite de requisições públicas, proteção de fórmulas no CSV, qualidade dos sensores, validação estrutural do frontend e Playwright com navegador real para renderização DOM, acessibilidade, navegação, tabelas e downloads PDF/JSON. A última execução na cópia pública aprovou os 218 testes da suíte.
 
 O teste de paridade ao vivo retorna sem realizar a comparação quando `RUN_LIVE_PARITY` não é `1`. Para exercitá-lo, também são necessários o projeto web original e a aplicação .NET em execução, com os endereços definidos por `ORIGINAL_WEB_URL` e `DOTNET_WEB_URL`. Os testes comuns de navegador usam dados simulados e não comprovam o login Google real nem as regras do Firebase em produção.
 
@@ -141,7 +141,7 @@ dotnet build EstacaoClimatica.sln
 - O carregamento dos dados brutos do dashboard passa por `IRepositorioDadosClimaticos` e `RepositorioDadosClimaticosFirebase`.
 - O acesso Firebase usa cache curto por URL e retry/backoff simples em `FonteDadosFirebase`.
 - Os nomes literais de campos Firebase ficam centralizados em `CamposFirebase`.
-- A configuração de IA/App Check fica em `OpcoesIa`, sem chave secreta no frontend.
+- A configuração de IA fica em `OpcoesIa`; o cliente implementado usa Gemini REST. As opções de App Check ainda não são aplicadas.
 - O assistente climático fica em `/api/chat`; o frontend envia pergunta, aba ativa, data selecionada e, quando houver, a última intenção resolvida para memória curta de conversa.
 - O assistente classifica a intenção, valida ambiente/data/métrica e calcula localmente em C#. Quando habilitada, a IA pode auxiliar na interpretação da intenção e na redação da resposta; falhas na geração usam a resposta local como alternativa.
 - Regras principais foram migradas para C# em `ServicoDashboardClimatico`.
@@ -200,6 +200,7 @@ dotnet build EstacaoClimatica.sln
 - Consulta publica protegida contra respostas fora de ordem, com mascara/validacao acessivel de CEP/cidade, bloqueio durante carregamento e cache de sessao sanitizado.
 - Tela pública inicial por CEP, cidade brasileira ou localização, com cards, contexto sazonal/lunar e seis gráficos curtos sincronizados.
 - No modo público, precipitação em milímetros e chance de chuva em porcentagem usam gráficos separados, com estados vazios independentes. O painel interno e o PDF mantêm o gráfico combinado.
+- A chance de chuva pública distingue `Medido` e `Previsão`: linha contínua para o histórico, linha mais clara e tracejada para o futuro, eixo percentual à esquerda e legenda também no celular. A transição em `Agora` mantém a continuidade visual sem duplicar o valor no tooltip.
 - Pesquisa de cidade retorna ate cinco candidatos brasileiros, prioriza correspondencia exata sem diferenciar acentos/caixa e apresenta a regiao administrativa para desambiguar homonimos.
 - Os graficos publicos de Temperatura, Sensacao Termica, Umidade e Pressao combinam as ultimas 24 horas observadas com as proximas 12 horas previstas, iniciadas na proxima hora cheia.
 - A chamada Open-Meteo usa `past_hours=24`, `forecast_hours=13`, `forecast_days=15` e os agregados diarios de temperatura minima/maxima, chuva, UV e codigo meteorologico.
@@ -209,7 +210,7 @@ dotnet build EstacaoClimatica.sln
 - Login/logout Google opcional; usuário não autorizado permanece no modo público.
 - Dashboard, chat e exportações só são inicializados para usuário interno autorizado.
 - Proteção server-side de `/api/dashboard` e `/api/chat` por Firebase ID token e allowlist.
-- Diferença arquitetural aceita em relação ao projeto original: o original pode usar frontend estático/Firebase AI Logic; esta versão mantém backend ASP.NET Core, repository Firebase e chat via `/api/chat`.
+- Esta versão usa backend ASP.NET Core, repository Firebase e chat via `/api/chat`; a comparação ao vivo com o projeto original requer execução separada.
 - Chip responsivo de duração do dia nos ciclos solares interno e público.
 - Cards ambientais de ventilação, chuva nas próximas 6 horas, índice UV e ponto de orvalho/risco estimado de mofo.
 - Chuva inclui maior probabilidade, intensidade máxima, acumulado e horário aproximado do pico; ausência de previsão permanece indisponível.

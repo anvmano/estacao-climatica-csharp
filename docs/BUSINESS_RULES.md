@@ -702,7 +702,7 @@ Criticidade: Media.
 - Cache Firebase curto por URL configurado em `Firebase:CacheDurationSeconds`.
 - Retry/backoff Firebase configurado por `Firebase:MaxRetryAttempts`.
 - Campos Firebase de ambiente e solar centralizados em `CamposFirebase`.
-- IA/App Check configurados; IA fica desativada por padrao e o chat usa resposta local quando nao houver IA habilitada.
+- IA configurada e desativada por padrao; o chat usa resposta local quando nao houver IA habilitada. As opcoes de App Check nao aplicam validacao no codigo atual.
 
 ## Regra: Assistente climatico, IA e App Check
 
@@ -716,9 +716,9 @@ Regras:
 
 - nenhuma chave secreta de IA deve ficar em `wwwroot`, `appsettings.json` versionado ou codigo-fonte;
 - chaves privadas devem vir de variaveis de ambiente, User Secrets ou cofre externo;
-- chaves publicas Firebase/App Check podem existir no cliente quando forem necessarias, mas devem ser protegidas por App Check, regras e cotas;
+- a configuracao publica de Firebase Auth no cliente nao substitui as regras do banco, a autorizacao no backend e as cotas;
 - `ArtificialIntelligence:MaxPeriodDays` preserva o limite de seguranca de 30 dias usado no Web para consultas por periodo;
-- `ArtificialIntelligence:RequireAppCheck` e enforcement de App Check so devem ser ativados depois de validar tokens no dominio de producao;
+- `ArtificialIntelligence:RequireAppCheck` e apenas configuracao no codigo atual; implementar e validar o verificador antes de depender de App Check;
 - a IA nao deve receber o Firebase inteiro; o fluxo deve interpretar a intencao, calcular localmente e enviar apenas o resultado calculado para redacao.
 - perguntas com hora especifica (`14h`, `14:00`, `as 14`) devem comparar a hora com chaves Firebase `HH-MM` e responder somente o valor daquele horario, sem media/minima/maxima/delta/amostras;
 - perguntas de continuidade devem usar a memoria curta enviada em `PreviousIntent` para herdar ambiente, metrica, operacao, periodo, hora e faixa horaria quando a nova pergunta omitir esses dados;
@@ -817,11 +817,12 @@ Nivel de risco: Alto.
 
 ```mermaid
 graph TD
-    UI["app.js DOMContentLoaded"] --> Fetch["fetch /api/dashboard"]
+    UI["app.js DOMContentLoaded"] --> Auth["Firebase Auth: token e e-mail autorizado"]
+    Auth --> Fetch["fetch /api/dashboard com Bearer token"]
     Fetch --> Controller["DashboardController endpoint"]
     Controller --> Service["ServicoDashboardClimatico.ObterDashboardAsync"]
     Service --> Repository["IRepositorioDadosClimaticos.ObterDadosDashboardAsync"]
-    Repository --> Firebase["IFonteDadosFirebase.ObterCaminhoAsync x4"]
+    Repository --> Firebase["IFonteDadosFirebase: quatro ramos, clima por datas necessarias"]
     Firebase --> Json["JsonElement?"]
     Service --> Env["MontadorDashboardAmbiente"]
     Service --> Solar["MontadorDashboardSolar"]
@@ -867,7 +868,7 @@ graph TD
 # DIVIDA TECNICA
 
 - Frontend modularizado ainda usa scripts classicos carregados em ordem e funcoes registradas em `window`; migrar para ES modules reduziria dependencia de ordem global.
-- Firebase Auth e usado como portao de experiencia; `/api/dashboard` e `/api/chat` validam o ID token e a allowlist no backend.
+- Firebase Auth e usado como portao de experiencia; com `InternalAccess:Enforce=true`, todas as rotas internas em `/api` validam o ID token e a allowlist no backend.
 - Algumas consultas historicas ainda podem filtrar em memoria depois do carregamento, mas o repository ja tenta leituras Firebase mais estreitas por data/path para o dashboard quando aplicavel.
 - Ainda existem rotulos, ids de DOM, ids de graficos e nomes de secoes de UI como literais no frontend/backend.
 
