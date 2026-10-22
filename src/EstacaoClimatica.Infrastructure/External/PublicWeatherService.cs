@@ -60,6 +60,10 @@ public sealed class ServicoClimaPublico : IServicoClimaPublico
         {
             throw new ArgumentException("Informe pelo menos 2 caracteres para pesquisar a cidade.");
         }
+        if (termo.Length > 100)
+        {
+            throw new ArgumentException("A pesquisa da cidade deve ter no máximo 100 caracteres.");
+        }
 
         var url = MontarUrl(_opcoes.OpenMeteoGeocodingUrl,
             ("name", termo),

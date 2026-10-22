@@ -116,7 +116,7 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
             .ToArray();
         if (pares.Length == 0) throw new ArgumentException($"Métrica não reconhecida: {metrica}.");
 
-        var dados = await _repositorio.ObterDadosDashboardAsync(tokenCancelamento);
+        var dados = await _repositorio.ObterDadosDashboardAsync(FormatarData(dataSelecionada), tokenCancelamento);
         var seriesClimaticas = pares.Select(par =>
         {
             var pontos = LeitorRegistrosFirebase.EnumerarRegistros(par.Environment.SelecionarRaiz(dados))
@@ -164,7 +164,9 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
         CancellationToken tokenCancelamento)
     {
         var periodo = ObterPeriodo(data, inicio, fim);
-        var dados = await _repositorio.ObterDadosDashboardAsync(tokenCancelamento);
+        var dados = periodo.From == periodo.To
+            ? await _repositorio.ObterDadosDashboardAsync(FormatarData(periodo.From), tokenCancelamento)
+            : await _repositorio.ObterDadosDashboardAsync(tokenCancelamento);
         var amostras = LeitorRegistrosFirebase.EnumerarRegistros(dados.Sala)
             .Select(item => (Record: item, Timestamp: CriarTimestamp(item)))
             .Where(item => item.Timestamp is not null && item.Timestamp.Value.Date >= periodo.From && item.Timestamp.Value.Date <= periodo.To)
@@ -586,9 +588,16 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
 
     private static string CriarCsvTabela(IReadOnlyList<string> cabecalhos, IReadOnlyList<IReadOnlyList<string>> linhas)
     {
-        static string Escapar(string valor) => valor.Contains(';') || valor.Contains('"') || valor.Contains('\n') || valor.Contains('\r')
-            ? $"\"{valor.Replace("\"", "\"\"")}\""
-            : valor;
+        static string Escapar(string valor)
+        {
+            var texto = valor.TrimStart();
+            if (texto.Length > 0 && "=+-@".Contains(texto[0])
+                && !double.TryParse(valor, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+                valor = "'" + valor;
+            return valor.Contains(';') || valor.Contains('"') || valor.Contains('\n') || valor.Contains('\r')
+                ? $"\"{valor.Replace("\"", "\"\"")}\""
+                : valor;
+        }
 
         var construtor = new StringBuilder();
         construtor.AppendLine(string.Join(';', cabecalhos.Select(Escapar)));

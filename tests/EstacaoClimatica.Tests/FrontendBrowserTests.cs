@@ -1065,6 +1065,48 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
     }
 
     [Fact]
+    public async Task ModoInterno_DeveSeguirAutorizacaoDaApiSemListaNoCliente()
+    {
+        await using var contexto = await CriarContextoAsync(autorizarInterno: false);
+        var pagina = await CriarPaginaComDashboardMockadoAsync(contexto, []);
+        var status = 200;
+        var tokenRecebido = "";
+        await pagina.RouteAsync("**/firebase-app.js", rota => rota.FulfillAsync(new()
+        {
+            ContentType = "text/javascript",
+            Headers = new Dictionary<string, string> { ["Access-Control-Allow-Origin"] = "*" },
+            Body = "export function initializeApp() { return {}; }"
+        }));
+        await pagina.RouteAsync("**/firebase-auth.js", rota => rota.FulfillAsync(new()
+        {
+            ContentType = "text/javascript",
+            Headers = new Dictionary<string, string> { ["Access-Control-Allow-Origin"] = "*" },
+            Body = """
+                export function getAuth() { return {}; }
+                export function onAuthStateChanged(auth, callback) {
+                    window.__authCallback = callback;
+                    callback({ email: 'usuario@example.test', getIdToken: async () => 'token-teste' });
+                }
+                """
+        }));
+        await pagina.RouteAsync("**/api/internal-access", rota =>
+        {
+            tokenRecebido = rota.Request.Headers.GetValueOrDefault("authorization") ?? "";
+            return rota.FulfillAsync(new() { Status = status });
+        });
+        await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.WaitForSelectorAsync("#privateApp", new() { State = WaitForSelectorState.Visible });
+        Assert.True(await pagina.EvaluateAsync<bool>("() => ClimateAuth.ehUsuarioInterno()"));
+        Assert.Equal("Bearer token-teste", tokenRecebido);
+
+        status = 401;
+        await pagina.EvaluateAsync("() => window.__authCallback({ email: 'usuario@example.test', getIdToken: async () => 'token-teste' })");
+        await pagina.WaitForSelectorAsync("#publicApp", new() { State = WaitForSelectorState.Visible });
+        Assert.False(await pagina.EvaluateAsync<bool>("() => ClimateAuth.ehUsuarioInterno()"));
+        Assert.True(await pagina.Locator("#privateApp").IsHiddenAsync());
+    }
+
+    [Fact]
     public async Task Logout_DeveLimparDashboardGraficosERetornarAoModoPublico()
     {
         await using var contexto = await CriarContextoAsync();
@@ -1824,6 +1866,112 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
     }
 
     [Fact]
+    public async Task RelatorioPdf_DeveIndicarAusenciaDeMedicaoSemChamarDeEstavel()
+    {
+        await using var contexto = await CriarContextoAsync();
+        var pagina = await CriarPaginaComDashboardMockadoAsync(contexto, []);
+        await pagina.GotoAsync(_servidor.UrlBase);
+
+        var resultado = await pagina.EvaluateAsync<string>("""
+            () => {
+                const metricas = [{ index: 2, key: 'co', label: 'CO' }, { index: 3, key: 'co2', label: 'CO2' }];
+                const linhas = montarLinhasTabelaPdf({ table: { rows: [['03/06/2026', '09:30', '--', '450ppm']] } }, metricas);
+                const painel = criarPainelAlertasPdf([], [{ status: 'Sem dados' }]);
+                return JSON.stringify({
+                    status: linhas[0].status,
+                    painel: painel.textContent,
+                    statusNulo: obterStatusMetricaPdf('CO', null),
+                    resumoNulo: montarResumoMetricaPdf({ key: 'co', label: 'CO' }, { label: 'CO', average: null }).current,
+                    pontos: obterPontosGraficoPdf({ points: [
+                        { label: 'ausente', value: null }, { label: 'vazio', value: '' }, { label: 'zero', value: 0 }
+                    ] }).map(ponto => ponto.label)
+                });
+            }
+            """);
+
+        using var documento = JsonDocument.Parse(resultado);
+        Assert.Equal("Sem dados", documento.RootElement.GetProperty("status").GetString());
+        Assert.Equal("Sem dados", documento.RootElement.GetProperty("statusNulo").GetString());
+        Assert.Equal("--", documento.RootElement.GetProperty("resumoNulo").GetString());
+        Assert.Equal(["zero"], documento.RootElement.GetProperty("pontos").EnumerateArray().Select(ponto => ponto.GetString()));
+        Assert.Contains("Sem medições", documento.RootElement.GetProperty("painel").GetString());
+        Assert.DoesNotContain("Estável", documento.RootElement.GetProperty("painel").GetString());
+    }
+
+    [Fact]
+    public async Task RelatorioPdf_DevePaginarTabelaLongaSemCortarLinhas()
+    {
+        await using var contexto = await CriarContextoAsync();
+        var pagina = await CriarPaginaComDashboardMockadoAsync(contexto, []);
+        await pagina.GotoAsync(_servidor.UrlBase);
+
+        var resultado = await pagina.EvaluateAsync<string>("""
+            async () => {
+                await carregarDependenciasPdf();
+                const raiz = document.createElement('div');
+                raiz.className = 'pdf-render-root';
+                raiz.innerHTML = '<table class="pdf-table"><thead><tr><th>Horário</th><th>Valor</th></tr></thead><tbody></tbody></table>';
+                document.body.appendChild(raiz);
+                const tabela = raiz.querySelector('table');
+                for (let i = 0; i < 100; i++) {
+                    const linha = document.createElement('tr');
+                    linha.innerHTML = `<td>linha-${i}</td><td>valor-${i}</td>`;
+                    tabela.tBodies[0].appendChild(linha);
+                }
+                const capturas = [];
+                const imagens = [];
+                const original = window.html2canvas;
+                window.html2canvas = async (elemento, opcoes) => {
+                    capturas.push({
+                        cabecalho: elemento.tHead?.textContent.includes('Horário'),
+                        linhas: [...elemento.tBodies[0].rows].map(linha => linha.cells[0].textContent)
+                    });
+                    return original(elemento, opcoes);
+                };
+                let paginas = 1;
+                const pdf = {
+                    addPage() { paginas++; }, setFillColor() {}, rect() {},
+                    addImage(_, __, x, y, largura, altura) { imagens.push({ x, y, largura, altura }); }
+                };
+                try {
+                    await adicionarTabelaPdf(pdf, tabela, criarLeiautePdf(), 16);
+                    return JSON.stringify({ capturas, imagens, paginas });
+                } finally {
+                    window.html2canvas = original;
+                    raiz.remove();
+                }
+            }
+            """);
+
+        using var documento = JsonDocument.Parse(resultado);
+        var capturas = documento.RootElement.GetProperty("capturas").EnumerateArray().ToArray();
+        var imagens = documento.RootElement.GetProperty("imagens").EnumerateArray().ToArray();
+        Assert.True(capturas.Length > 1);
+        Assert.All(capturas, captura => Assert.True(captura.GetProperty("cabecalho").GetBoolean()));
+        Assert.Equal(Enumerable.Range(0, 100).Select(indice => $"linha-{indice}"),
+            capturas.SelectMany(captura => captura.GetProperty("linhas").EnumerateArray().Select(linha => linha.GetString())));
+        Assert.Equal(capturas.Length, imagens.Length);
+        Assert.Equal(capturas.Length, documento.RootElement.GetProperty("paginas").GetInt32());
+        Assert.All(imagens, imagem => Assert.True(imagem.GetProperty("y").GetDouble() + imagem.GetProperty("altura").GetDouble() <= 281.01));
+    }
+
+    [Fact]
+    public async Task RelatorioPdf_DeveFalharQuandoCssNaoCarrega()
+    {
+        await using var contexto = await CriarContextoAsync();
+        var pagina = await CriarPaginaComDashboardMockadoAsync(contexto, []);
+        await pagina.RouteAsync("**/pdf-report.css*", rota => rota.AbortAsync());
+        await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.WaitForSelectorAsync("#statsEstacao .stats-card", new() { State = WaitForSelectorState.Attached });
+
+        await pagina.Locator("#btnExportData").ClickAsync();
+        await pagina.WaitForSelectorAsync("#exportFeedback.is-error");
+
+        Assert.Contains("Falha ao exportar", await pagina.Locator("#exportStatus").InnerTextAsync());
+        Assert.Equal("undefined", await pagina.EvaluateAsync<string>("() => typeof window.html2canvas"));
+    }
+
+    [Fact]
     public async Task ExportacaoJson_DeveBaixarArquivoComMetadadosResumoTabelaEDadosDaAba()
     {
         await using var contexto = await CriarContextoAsync();
@@ -2281,6 +2429,7 @@ public sealed class ApiAuthorizationTests : IClassFixture<AmbienteTestesInterfac
         using var cliente = new HttpClient();
         var caminhosGet = new[]
         {
+            "api/internal-access",
             "api/dashboard?date=03-06-2026",
             "api/environments",
             "api/environments/sala/latest",
@@ -2327,6 +2476,47 @@ public sealed class ApiAuthorizationTests : IClassFixture<AmbienteTestesInterfac
         Assert.Equal(HttpStatusCode.OK, saude.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, clima.StatusCode);
         Assert.Contains("Informe um CEP com 8 dígitos.", await clima.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task ScriptPublico_DeveOmitirListaDeEmailsAutorizados()
+    {
+        using var cliente = new HttpClient();
+        using var resposta = await cliente.GetAsync($"{_servidor.UrlBase}scripts/auth.js");
+        var script = await resposta.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+        Assert.DoesNotContain("usuario@example.com", script);
+        Assert.DoesNotContain("outra@example.com", script);
+        Assert.Contains("/api/internal-access", script);
+    }
+}
+
+public sealed class PublicWeatherRateLimitTests
+{
+    [Fact]
+    public async Task RotasPublicas_DevemRetornar429AposLimitePorOrigem()
+    {
+        var servidor = new AmbienteTestesInterfaceNavegador();
+        await servidor.InitializeAsync();
+        try
+        {
+            using var cliente = new HttpClient();
+            for (var tentativa = 0; tentativa < 60; tentativa++)
+            {
+                using var resposta = await cliente.GetAsync($"{servidor.UrlBase}api/public-weather/cities?term=x");
+                Assert.Equal(HttpStatusCode.BadRequest, resposta.StatusCode);
+            }
+
+            using var excedente = await cliente.GetAsync($"{servidor.UrlBase}api/public-weather/cities?term=x");
+            Assert.Equal((HttpStatusCode)429, excedente.StatusCode);
+            using var saude = await cliente.GetAsync($"{servidor.UrlBase}api/health");
+            Assert.Equal(HttpStatusCode.OK, saude.StatusCode);
+        }
+        finally
+        {
+            await servidor.DisposeAsync();
+        }
     }
 }
 

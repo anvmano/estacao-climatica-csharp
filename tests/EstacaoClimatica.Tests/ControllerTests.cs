@@ -22,6 +22,19 @@ public sealed class TestesControladores
         Assert.Equal("03-06-2026", servico.DataRecebida);
     }
 
+    [Theory]
+    [InlineData("32-06-2026")]
+    [InlineData("2026-06-03")]
+    [InlineData("")]
+    public async Task Dashboard_DeveRejeitarDataInvalidaSemConsultarServico(string data)
+    {
+        var servico = new ServicoDashboardSimulado(CriarDashboard());
+        var controlador = new DashboardController(servico);
+
+        Assert.IsType<BadRequestObjectResult>(await controlador.ObterDashboard(data, CancellationToken.None));
+        Assert.Equal(0, servico.Chamadas);
+    }
+
     [Fact]
     public void Saude_DeveRetornarStatusOk()
     {
@@ -179,9 +192,11 @@ public sealed class TestesControladores
     {
         public DashboardResponse Resposta { get; } = resposta;
         public string? DataRecebida { get; private set; }
+        public int Chamadas { get; private set; }
 
         public Task<DashboardResponse> ObterDashboardAsync(string? dataFirebase, CancellationToken tokenCancelamento)
         {
+            Chamadas++;
             DataRecebida = dataFirebase;
             return Task.FromResult(Resposta);
         }

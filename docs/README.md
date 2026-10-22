@@ -34,9 +34,9 @@ A versão publicada usa valores de exemplo no lugar da chave Firebase, dos ident
 | --- | --- |
 | [`appsettings.json`](../src/EstacaoClimatica.Web/appsettings.json) | `Firebase:DatabaseUrl`, caminhos de leitura e `InternalAccess:AuthorizedEmails`. |
 | [`InternalAccessOptions.cs`](../src/EstacaoClimatica.Application/Configuration/InternalAccessOptions.cs) | Chave `FirebaseApiKey` usada pelo backend na verificação de tokens. Ela também pode ser definida por `InternalAccess:FirebaseApiKey` na configuração do ASP.NET Core. |
-| [`auth.js`](../src/EstacaoClimatica.Web/wwwroot/scripts/auth.js) | `apiKey`, `authDomain`, `projectId`, `appId` e a lista `usuariosInternos`. |
+| [`auth.js`](../src/EstacaoClimatica.Web/wwwroot/scripts/auth.js) | `apiKey`, `authDomain`, `projectId` e `appId`. A autorização do usuário é confirmada pelo backend em `/api/internal-access`. |
 
-Use o mesmo projeto Firebase no frontend e no backend e mantenha as listas de e-mails autorizados coerentes. Habilite o provedor Google no Firebase Authentication e autorize o domínio da aplicação, incluindo `localhost` no desenvolvimento. Não envie as configurações reais ao repositório público.
+Use o mesmo projeto Firebase no frontend e no backend. Configure os e-mails autorizados em `InternalAccess:AuthorizedEmails`; a lista não fica mais no JavaScript servido ao navegador. Habilite o provedor Google no Firebase Authentication e autorize o domínio da aplicação, incluindo `localhost` no desenvolvimento. Não envie as configurações reais ao repositório público.
 
 A configuração web do Firebase continua legível no navegador quando a aplicação é executada; retirá-la do GitHub não a transforma em segredo. As regras do banco e as restrições da chave devem proteger o acesso. Chaves secretas de IA devem permanecer somente no backend.
 
@@ -77,6 +77,8 @@ Configurações migradas:
 - `Colors`
 
 O frontend usa Firebase Auth para login Google opcional. Todas as rotas internas em `/api`, incluindo dashboard, chat e consultas climaticas, validam o Firebase ID token no backend e aceitam somente os e-mails configurados em `InternalAccess:AuthorizedEmails`. Apenas `/api/health` e `/api/public-weather/*` sao anonimas.
+
+Após o login, o frontend confirma a permissão em `/api/internal-access` antes de abrir o painel interno. As rotas de clima público aceitam até 60 requisições por minuto para cada IP visto pelo servidor; o excesso recebe HTTP 429. A busca por cidade aceita de 2 a 100 caracteres.
 
 A integração de IA fica desativada por padrão. O chat já funciona com cálculo local em C#; quando `ArtificialIntelligence:Enabled=true`, o backend pode usar o modelo configurado para classificar a intenção e redigir a resposta, mantendo os cálculos em C#. A implementação atual usa `ClienteGeracaoTextoGemini` para chamar a API Gemini pelo backend. O campo `Provider` não seleciona outra implementação automaticamente.
 
@@ -121,7 +123,7 @@ A data da API usa o mesmo formato do Firebase: `dd-MM-yyyy`. Os dez endpoints de
 dotnet test EstacaoClimatica.sln
 ```
 
-Os testes incluem serviços e controllers dos dez endpoints de consulta, autorização HTTP, qualidade dos sensores, validação estrutural do frontend e Playwright com navegador real para renderização DOM, acessibilidade, navegação, tabelas e downloads PDF/JSON. A última execução na cópia pública aprovou os 202 testes da suíte.
+Os testes incluem serviços e controllers dos dez endpoints de consulta, autorização HTTP, limite de requisições públicas, proteção de fórmulas no CSV, qualidade dos sensores, validação estrutural do frontend e Playwright com navegador real para renderização DOM, acessibilidade, navegação, tabelas e downloads PDF/JSON. A última execução na cópia pública aprovou os 214 testes da suíte.
 
 O teste de paridade ao vivo retorna sem realizar a comparação quando `RUN_LIVE_PARITY` não é `1`. Para exercitá-lo, também são necessários o projeto web original e a aplicação .NET em execução, com os endereços definidos por `ORIGINAL_WEB_URL` e `DOTNET_WEB_URL`. Os testes comuns de navegador usam dados simulados e não comprovam o login Google real nem as regras do Firebase em produção.
 
@@ -177,6 +179,8 @@ dotnet build EstacaoClimatica.sln
 - Navegacao acessivel entre abas por setas, `Home` e `End`, com foco movel e paineis associados por ARIA.
 - Exportação da aba ativa para PDF ou JSON: Estação exporta contexto global/solar sem tabela; Sala e Quarto exportam ambiente+tabela sem solar; Aquário exporta apenas temperatura, PH, TDS e Turbidez.
 - Exportacao com progresso anunciado, timeout de 45 segundos, mensagem de erro e tentativa novamente.
+- O PDF preserva medições ausentes como `--` e diferencia ausência de dados de estabilidade; tabelas longas são paginadas por linha, com repetição do cabeçalho. Falhas ao carregar o CSS interrompem a exportação e são informadas ao usuário.
+- A exportação CSV da API neutraliza conteúdo que possa ser interpretado como fórmula, preservando números negativos. Consultas de séries e qualidade do ar de um único dia usam a leitura delimitada do repositório.
 - Ciclo solar do PDF gerado offscreen pela mesma lógica visual do gráfico da tela, com estado vazio quando não houver dados solares.
 - Cache curto nas leituras Firebase.
 - Retry/backoff simples no HTTP Firebase.

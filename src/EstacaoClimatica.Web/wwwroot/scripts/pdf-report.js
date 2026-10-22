@@ -275,7 +275,7 @@ async function carregarDependenciasPdf() {
 }
 
 function carregarCssUmaVez(enderecoDestino) {
-    return new Promise(resolver => {
+    return new Promise((resolver, rejeitar) => {
         const caminho = enderecoDestino.split('?')[0];
         if ([...document.styleSheets].some(folha => folha.href?.includes(caminho))) {
             resolver();
@@ -286,7 +286,10 @@ function carregarCssUmaVez(enderecoDestino) {
         link.rel = 'stylesheet';
         link.href = enderecoDestino;
         link.onload = () => resolver();
-        link.onerror = () => resolver();
+        link.onerror = () => {
+            link.remove();
+            rejeitar(new Error(`Falha ao carregar ${enderecoDestino}`));
+        };
         document.head.appendChild(link);
     });
 }
@@ -376,23 +379,27 @@ function criarSecaoResumo(cartoes, alertas) {
     grade.className = 'pdf-summary-grid';
     cartoes.forEach(cartao => grade.appendChild(criarCardResumoRelatorio(cartao)));
     secao.appendChild(grade);
-    secao.appendChild(criarPainelAlertas(alertas));
+    secao.appendChild(criarPainelAlertas(alertas, cartoes));
     return secao;
 }
 
-function criarPainelAlertas(alertas) {
+function criarPainelAlertas(alertas, cartoes = []) {
     const painel = document.createElement('aside');
     const possuiAlertas = alertas.length > 0;
+    const semDados = !cartoes.some(cartao => !['Sem dados', 'Atual'].includes(cartao.status));
+    const dadosParciais = cartoes.some(cartao => cartao.status === 'Sem dados');
     painel.className = `pdf-alert-panel ${possuiAlertas ? 'pdf-alert-panel--alert' : 'pdf-alert-panel--stable'}`;
 
     const itens = possuiAlertas
         ? alertas.map(alerta => `<li>${escaparHtml(alerta)}</li>`).join('')
-        : '<li>Nenhum indicador fora da faixa de conforto no período analisado.</li>';
+        : semDados ? '<li>Sem medições para avaliar alertas neste período.</li>'
+            : dadosParciais ? '<li>Sem alertas nos indicadores com dados; há medições ausentes.</li>'
+                : '<li>Nenhum indicador fora da faixa de conforto no período analisado.</li>';
 
     painel.innerHTML = `
         <div class="pdf-alert-panel__heading">
             <span>Alertas do dia</span>
-            <strong>${possuiAlertas ? `${alertas.length} atenção` : 'Estável'}</strong>
+            <strong>${possuiAlertas ? `${alertas.length} atenção` : semDados ? 'Sem dados' : dadosParciais ? 'Dados parciais' : 'Estável'}</strong>
         </div>
         <ul class="pdf-alert-list">${itens}</ul>
     `;
@@ -547,7 +554,7 @@ function montarResumoChuvaPdf() {
         min: Number.isFinite(Number(resumo?.acumulado)) ? `${Number(resumo.acumulado).toFixed(1)} mm / 6h` : '--',
         max: Number.isFinite(Number(resumo?.probabilidade)) ? `${Math.round(Number(resumo.probabilidade))}% prevista` : '--',
         delta: dados.origem?.rotulo || 'Localização consultada',
-        status: atual?.chovendo ? 'Alerta' : 'Estável'
+        status: !atual ? 'Sem dados' : atual.chovendo ? 'Alerta' : 'Estável'
     };
 }
 
@@ -780,20 +787,23 @@ function montarLinhasTabelaPdf(secao, metricas) {
     return linhas.map(linha => {
         const valores = {};
         const alertas = [];
+        let possuiValorAusente = false;
 
         metricas.forEach(metrica => {
             const valorOriginal = linha[metrica.index] ?? '--';
             valores[metrica.key] = formatarValorTabela(valorOriginal, metrica.label);
 
-            if (obterStatusMetricaPdf(metrica, extrairNumeroPdf(valorOriginal)) === 'Alerta') {
+            const status = obterStatusMetricaPdf(metrica, extrairNumeroPdf(valorOriginal));
+            if (status === 'Alerta') {
                 alertas.push(metrica.label);
             }
+            if (status === 'Sem dados') possuiValorAusente = true;
         });
 
         return {
             horario: linha[1] || '--',
             valores,
-            status: alertas.length ? 'Alerta' : 'Estável'
+            status: alertas.length ? 'Alerta' : possuiValorAusente ? 'Sem dados' : 'Estável'
         };
     });
 }
@@ -900,10 +910,13 @@ function obterUnidadeGraficoPdf(grafico) {
 
 function obterPontosGraficoPdf(grafico) {
     return (grafico?.points || grafico?.series || [])
-        .map(ponto => ({
-            label: ponto.label || ponto.horario || ponto.time || '',
-            value: Number(ponto.value ?? ponto.valor)
-        }))
+        .map(ponto => {
+            const valor = ponto.value ?? ponto.valor;
+            return {
+                label: ponto.label || ponto.horario || ponto.time || '',
+                value: valor == null || String(valor).trim() === '' ? NaN : Number(valor)
+            };
+        })
         .filter(ponto => ponto.label && Number.isFinite(ponto.value));
 }
 
@@ -1273,7 +1286,7 @@ function comAlpha(cor, opacidade) {
 
 function calcularMediaPdf(valores) {
     const validos = valores.filter(Number.isFinite);
-    if (!validos.length) return 0;
+    if (!validos.length) return NaN;
     return validos.reduce((total, valor) => total + valor, 0) / validos.length;
 }
 
@@ -1305,19 +1318,19 @@ function obterStatusTabelaPdf(indicador, valor) {
 }
 
 function formatarValorPdf(valor, unidade) {
-    if (!Number.isFinite(Number(valor))) return '--';
+    if (valor == null || String(valor).trim() === '' || !Number.isFinite(Number(valor))) return '--';
     const casas = Math.abs(Number(valor)) >= 100 ? 0 : 1;
     return `${Number(valor).toFixed(casas)}${unidade || ''}`;
 }
 
 function formatarDiferenca(valor, unidade) {
-    if (!Number.isFinite(Number(valor))) return '--';
+    if (valor == null || String(valor).trim() === '' || !Number.isFinite(Number(valor))) return '--';
     const sinal = Number(valor) > 0 ? '+' : '';
     return `${sinal}${formatarValorPdf(valor, unidade)}`;
 }
 
 function obterStatusMetricaPdf(metricaOuRotulo, valor) {
-    if (!Number.isFinite(Number(valor))) return 'Sem dados';
+    if (valor == null || String(valor).trim() === '' || !Number.isFinite(Number(valor))) return 'Sem dados';
     const faixa = obterFaixaConfortoPdf(metricaOuRotulo);
 
     if (faixa && (Number(valor) < faixa.min || Number(valor) > faixa.max)) {
@@ -1376,7 +1389,12 @@ async function adicionarBlocosRelatorio(pdf, elemento) {
     if (tabela) {
         posicaoAtualY = adicionarPaginaPdf(pdf, leiaute);
         posicaoAtualY = adicionarTituloSecao(pdf, 'Tabela resumida', leiaute, posicaoAtualY);
-        await adicionarBlocoElemento(pdf, tabela.querySelector('.pdf-table, .pdf-empty'), leiaute, posicaoAtualY, { allowSplit: true, gap: 0 });
+        const conteudoTabela = tabela.querySelector('.pdf-table, .pdf-empty');
+        if (conteudoTabela?.matches('.pdf-table')) {
+            await adicionarTabelaPdf(pdf, conteudoTabela, leiaute, posicaoAtualY);
+        } else {
+            await adicionarBlocoElemento(pdf, conteudoTabela, leiaute, posicaoAtualY, { gap: 0 });
+        }
     }
 }
 
@@ -1388,6 +1406,48 @@ function criarLeiautePdf() {
         contentBottom: 281,
         margin: { top: 8, right: 8, bottom: 16, left: 8 }
     };
+}
+
+async function adicionarTabelaPdf(pdf, tabela, leiaute, posicaoAtualY) {
+    const linhas = [...(tabela.tBodies[0]?.rows || [])];
+    if (!linhas.length) return adicionarBlocoElemento(pdf, tabela, leiaute, posicaoAtualY, { gap: 0 });
+
+    const paginaTabela = tabela.cloneNode(false);
+    if (tabela.tHead) paginaTabela.appendChild(tabela.tHead.cloneNode(true));
+    const corpo = paginaTabela.appendChild(document.createElement('tbody'));
+    tabela.parentElement.appendChild(paginaTabela);
+
+    const alturaEmMm = () => paginaTabela.getBoundingClientRect().height * leiaute.contentWidth / paginaTabela.getBoundingClientRect().width;
+    const desenharPagina = async () => {
+        const canvas = await capturarElemento(paginaTabela);
+        const altura = obterAlturaCanvasMm(canvas, leiaute);
+        if (altura > obterAlturaConteudo(leiaute)) throw new Error('Uma linha da tabela excede a altura da página.');
+        if (posicaoAtualY + altura > leiaute.contentBottom) posicaoAtualY = adicionarPaginaPdf(pdf, leiaute);
+        adicionarImagemCanvas(pdf, canvas, leiaute, posicaoAtualY, altura);
+        posicaoAtualY += altura;
+    };
+
+    try {
+        for (const linha of linhas) {
+            corpo.appendChild(linha.cloneNode(true));
+            if (posicaoAtualY + alturaEmMm() <= leiaute.contentBottom) continue;
+
+            corpo.lastChild.remove();
+            if (corpo.rows.length) {
+                await desenharPagina();
+                posicaoAtualY = adicionarPaginaPdf(pdf, leiaute);
+                corpo.replaceChildren();
+            } else if (posicaoAtualY > leiaute.margin.top) {
+                posicaoAtualY = adicionarPaginaPdf(pdf, leiaute);
+            }
+            corpo.appendChild(linha.cloneNode(true));
+            if (alturaEmMm() > obterAlturaConteudo(leiaute)) throw new Error('Uma linha da tabela excede a altura da página.');
+        }
+        await desenharPagina();
+        return posicaoAtualY;
+    } finally {
+        paginaTabela.remove();
+    }
 }
 
 async function adicionarBlocoElemento(pdf, elemento, leiaute, posicaoAtualY, opcoes = {}) {

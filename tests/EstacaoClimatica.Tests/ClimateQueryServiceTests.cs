@@ -80,6 +80,23 @@ public sealed class TestesServicoConsultasClimaticas
     }
 
     [Fact]
+    public async Task ConsultasDeDiaUnico_DevemUsarLeituraDelimitadaSemAlterarPontos()
+    {
+        var repositorio = new RepositorioConsultasSimulado(CriarDados());
+        var servico = new ServicoConsultasClimaticas(repositorio, new DashboardConsultaSimulado(CriarDashboard()));
+
+        var serie = await servico.ObterSerieAsync("temperatura", "03-06-2026", null, CancellationToken.None);
+        var qualidade = await servico.ObterQualidadeArAsync("03-06-2026", null, null, CancellationToken.None);
+        var intervalo = await servico.ObterQualidadeArAsync(null, "02-06-2026", "03-06-2026", CancellationToken.None);
+
+        Assert.Equal(["03-06-2026", "03-06-2026"], repositorio.DatasSolicitadas);
+        Assert.Equal(1, repositorio.LeiturasCompletas);
+        Assert.All(serie.Series, item => Assert.Equal(2, item.Points.Count));
+        Assert.Equal(2, qualidade.Samples.Count);
+        Assert.Equal(3, intervalo.Samples.Count);
+    }
+
+    [Fact]
     public async Task Resumo_DevePreservarDashboardDaDataObrigatoria()
     {
         var servico = CriarServico();
@@ -169,6 +186,23 @@ public sealed class TestesServicoConsultasClimaticas
         Assert.Contains("\"date\": \"03-06-2026\"", Encoding.UTF8.GetString(json.Content));
         Assert.EndsWith("sala-03-06-2026.csv", csv.FileName);
         Assert.Contains("Data;Hora;CO;CO2", Encoding.UTF8.GetString(csv.Content));
+    }
+
+    [Fact]
+    public async Task ExportacaoCsv_DeveNeutralizarFormulasSemAlterarNumerosNegativos()
+    {
+        var dashboard = CriarDashboard();
+        var sala = dashboard.Sala with
+        {
+            Table = new TableData(["Hora", "Valor"], [[" =1+1", "-2.5"], ["@SUM(A1)", "+cmd"]])
+        };
+        var servico = CriarServico(dashboard with { Sala = sala });
+
+        var csv = await servico.ExportarAsync("csv", "03-06-2026", "Tab1", CancellationToken.None);
+        var texto = Encoding.UTF8.GetString(csv.Content);
+
+        Assert.Contains("' =1+1;-2.5", texto);
+        Assert.Contains("'@SUM(A1);'+cmd", texto);
     }
 
     [Theory]
@@ -261,8 +295,18 @@ public sealed class TestesServicoConsultasClimaticas
 
     private sealed class RepositorioConsultasSimulado(DadosDashboardFirebase dados) : IRepositorioDadosClimaticos
     {
-        public Task<DadosDashboardFirebase> ObterDadosDashboardAsync(CancellationToken tokenCancelamento) => Task.FromResult(dados);
-        public Task<DadosDashboardFirebase> ObterDadosDashboardAsync(string? dataSelecionada, CancellationToken tokenCancelamento) => Task.FromResult(dados);
+        public int LeiturasCompletas { get; private set; }
+        public List<string?> DatasSolicitadas { get; } = [];
+        public Task<DadosDashboardFirebase> ObterDadosDashboardAsync(CancellationToken tokenCancelamento)
+        {
+            LeiturasCompletas++;
+            return Task.FromResult(dados);
+        }
+        public Task<DadosDashboardFirebase> ObterDadosDashboardAsync(string? dataSelecionada, CancellationToken tokenCancelamento)
+        {
+            DatasSolicitadas.Add(dataSelecionada);
+            return Task.FromResult(dados);
+        }
     }
 
     private sealed class DashboardConsultaSimulado(DashboardResponse resposta) : IServicoDashboardClimatico

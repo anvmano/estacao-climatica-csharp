@@ -1,12 +1,14 @@
 using EstacaoClimatica.Application.Abstractions;
 using EstacaoClimatica.Domain;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Text.Json;
 
 namespace EstacaoClimatica.Web.Controllers;
 
 [ApiController]
 [Route("api/public-weather")]
+[EnableRateLimiting("clima-publico")]
 public sealed class PublicWeatherController : ControllerBase
 {
     private readonly IServicoClimaPublico _servico;

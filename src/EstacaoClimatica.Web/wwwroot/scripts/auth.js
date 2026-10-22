@@ -2,7 +2,6 @@
 
 (function () {
     const versaoSdk = '12.13.0';
-    const usuariosInternos = ['usuario@example.com', 'outra@example.com'];
     const configuracaoFirebase = {
         apiKey: 'SUA_CHAVE_FIREBASE',
         authDomain: 'seu-projeto.firebaseapp.com',
@@ -12,17 +11,33 @@
 
     let autenticacao = null;
     let usuarioAtual = null;
+    let acessoInterno = false;
     let inicializacao = null;
     let recursosAuth = null;
     let sessaoTeste = false;
     const observadores = [];
 
-    function normalizarEmail(email) {
-        return String(email || '').trim().toLowerCase();
+    function ehUsuarioInterno(usuario = usuarioAtual) {
+        return usuario === usuarioAtual && acessoInterno;
     }
 
-    function ehUsuarioInterno(usuario = usuarioAtual) {
-        return usuariosInternos.includes(normalizarEmail(usuario?.email));
+    async function atualizarUsuario(usuario) {
+        usuarioAtual = usuario;
+        acessoInterno = false;
+        if (usuario) {
+            try {
+                const token = await usuario.getIdToken();
+                const resposta = await fetch('/api/internal-access', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (usuarioAtual !== usuario) return;
+                acessoInterno = resposta.ok;
+            } catch (erro) {
+                console.error('[Estação Climática] Falha ao verificar acesso interno.', erro);
+            }
+            if (usuarioAtual !== usuario) return;
+        }
+        observadores.forEach(observador => observador(usuario));
     }
 
     async function inicializar() {
@@ -36,10 +51,7 @@
             const aplicacao = initializeApp(configuracaoFirebase, 'estacao-climatica-dotnet');
             recursosAuth = moduloAuth;
             autenticacao = moduloAuth.getAuth(aplicacao);
-            moduloAuth.onAuthStateChanged(autenticacao, usuario => {
-                usuarioAtual = usuario;
-                observadores.forEach(observador => observador(usuario));
-            });
+            moduloAuth.onAuthStateChanged(autenticacao, usuario => { void atualizarUsuario(usuario); });
             return autenticacao;
         })();
 
@@ -56,6 +68,7 @@
     async function sair() {
         if (sessaoTeste) {
             usuarioAtual = null;
+            acessoInterno = false;
             observadores.forEach(observador => observador(null));
             return;
         }
@@ -68,9 +81,10 @@
         const ambienteTeste = navigator.webdriver && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
         const emailTeste = typeof window.__climateTestUserEmail === 'string'
             ? window.__climateTestUserEmail
-            : window.__climateTestAuthorized ? 'usuario@example.com' : null;
+            : window.__climateTestAuthorized ? 'internal-test@example.test' : null;
         if (ambienteTeste && emailTeste) {
             sessaoTeste = true;
+            acessoInterno = window.__climateTestAuthorized === true;
             usuarioAtual = {
                 email: emailTeste,
                 getIdToken: async () => 'browser-test-token'

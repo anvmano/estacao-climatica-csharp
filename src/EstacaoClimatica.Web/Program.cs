@@ -6,10 +6,24 @@ using EstacaoClimatica.Infrastructure.Authentication;
 using EstacaoClimatica.Infrastructure.External;
 using EstacaoClimatica.Infrastructure.Firebase;
 using EstacaoClimatica.Infrastructure.Repositories;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var construtor = WebApplication.CreateBuilder(args);
 
 construtor.Services.AddControllers();
+construtor.Services.AddRateLimiter(opcoes =>
+{
+    opcoes.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    opcoes.AddPolicy("clima-publico", contexto => RateLimitPartition.GetFixedWindowLimiter(
+        contexto.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+});
 
 // Configurações vêm do appsettings para manter URL/caminhos Firebase e paleta fora do código.
 construtor.Services.AddSingleton(construtor.Configuration.GetSection("Firebase").Get<OpcoesFirebase>() ?? new OpcoesFirebase());
@@ -33,6 +47,8 @@ var aplicacao = construtor.Build();
 
 aplicacao.UseDefaultFiles();
 aplicacao.UseStaticFiles();
+aplicacao.UseRouting();
+aplicacao.UseRateLimiter();
 
 aplicacao.Use(async (contexto, proximo) =>
 {
@@ -65,5 +81,6 @@ aplicacao.Use(async (contexto, proximo) =>
 });
 
 aplicacao.MapControllers();
+aplicacao.MapGet("/api/internal-access", () => Results.Ok());
 
 aplicacao.Run();

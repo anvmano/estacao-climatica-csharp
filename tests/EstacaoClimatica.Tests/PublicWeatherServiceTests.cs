@@ -9,6 +9,22 @@ namespace EstacaoClimatica.Tests;
 public sealed class TestesServicoClimaPublico
 {
     [Fact]
+    public async Task PesquisarCidades_DeveRejeitarTermoLongoSemConsultarApi()
+    {
+        var requisicoes = 0;
+        using var cliente = new HttpClient(new ManipuladorRoteadorHttp(_ =>
+        {
+            requisicoes++;
+            return CriarJson(HttpStatusCode.OK, "{}");
+        }));
+        var servico = new ServicoClimaPublico(cliente, CriarOpcoes());
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            servico.PesquisarCidadesAsync(new string('a', 101), CancellationToken.None));
+        Assert.Equal(0, requisicoes);
+    }
+
+    [Fact]
     public async Task BuscarPorCep_DeveRejeitarCepInvalidoSemConsultarApis()
     {
         var requisicoes = 0;

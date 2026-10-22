@@ -1,5 +1,6 @@
 using EstacaoClimatica.Application.Abstractions;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 
 namespace EstacaoClimatica.Web.Controllers;
 
@@ -17,7 +18,9 @@ public sealed class DashboardController : ControllerBase
     [HttpGet("dashboard")]
     public async Task<IActionResult> ObterDashboard([FromQuery] string? date, CancellationToken tokenCancelamento)
     {
-        // A data chega no formato usado pelo Firebase; se vier vazia, a camada Application aplica o padrão do dia atual.
+        if (date is not null && !DateOnly.TryParseExact(date, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+            return BadRequest(new { message = "Data inválida. Use o formato dd-MM-yyyy." });
+
         var dashboard = await _servico.ObterDashboardAsync(date, tokenCancelamento);
         return Ok(dashboard);
     }
