@@ -1,7 +1,6 @@
 # Diretrizes para Criação de Mensagens de Commit
 
-> Este arquivo é referência detalhada.  
-> Não precisa ser lido em toda tarefa. As regras resumidas do `AI_SYSTEM_PROMPT.md` devem ser usadas como padrão.
+> Este arquivo reúne as diretrizes para mensagens de commit deste repositório.
 
 ## Objetivo
 
@@ -136,7 +135,8 @@ html2canvas e jsPDF deixam de ser carregados na abertura inicial.
 Reduz o custo inicial para usuários que não utilizam exportação.
 
 Validações:
-- npm run validate
+- dotnet build EstacaoClimatica.sln
+- dotnet test EstacaoClimatica.sln
 - Smoke test no Chrome headless
 ```
 

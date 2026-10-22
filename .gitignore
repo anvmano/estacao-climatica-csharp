@@ -18,3 +18,13 @@ outputs/
 .env
 .env.*
 !.env.example
+
+# Documentos internos: manter somente na cópia local.
+/docs/AI_QUICK_CONTEXT.md
+/docs/AI_SYSTEM_PROMPT.md
+/docs/ARCHITECTURE_AI.md
+/docs/AUDITORIA_PARIDADE_COMPORTAMENTAL_2026-09-08.md
+/docs/EQUIVALENCIA_NOMES_ORIGINAL.md
+/docs/MATRIZ_PARIDADE_03-06-2026.md
+/docs/NOMENCLATURA_PTBR.md
+/docs/ROTEIRO_IMPLEMENTACAO_UI_UX_2026-09-22.md
