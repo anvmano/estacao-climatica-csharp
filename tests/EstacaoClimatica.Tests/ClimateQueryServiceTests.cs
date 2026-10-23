@@ -91,6 +91,7 @@ public sealed class TestesServicoConsultasClimaticas
 
         Assert.Equal(["03-06-2026", "03-06-2026"], repositorio.DatasSolicitadas);
         Assert.Equal(1, repositorio.LeiturasCompletas);
+        Assert.Equal((false, false, false, true), repositorio.RamosSolicitados);
         Assert.All(serie.Series, item => Assert.Equal(2, item.Points.Count));
         Assert.Equal(2, qualidade.Samples.Count);
         Assert.Equal(3, intervalo.Samples.Count);
@@ -297,6 +298,12 @@ public sealed class TestesServicoConsultasClimaticas
     {
         public int LeiturasCompletas { get; private set; }
         public List<string?> DatasSolicitadas { get; } = [];
+        public (bool Quarto, bool Solar, bool Aquario, bool Sala)? RamosSolicitados { get; private set; }
+        public Task<DadosDashboardFirebase> ObterDadosPorRamosAsync(bool quarto, bool solar, bool aquario, bool sala, CancellationToken tokenCancelamento)
+        {
+            RamosSolicitados = (quarto, solar, aquario, sala);
+            return ObterDadosDashboardAsync(tokenCancelamento);
+        }
         public Task<DadosDashboardFirebase> ObterDadosDashboardAsync(CancellationToken tokenCancelamento)
         {
             LeiturasCompletas++;

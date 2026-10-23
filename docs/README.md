@@ -123,7 +123,7 @@ A data da API usa o mesmo formato do Firebase: `dd-MM-yyyy`. Os dez endpoints de
 dotnet test EstacaoClimatica.sln
 ```
 
-Os testes incluem serviços e controllers dos dez endpoints de consulta, autorização HTTP, limite de requisições públicas, proteção de fórmulas no CSV, qualidade dos sensores, validação estrutural do frontend e Playwright com navegador real para renderização DOM, acessibilidade, navegação, tabelas e downloads PDF/JSON. A última execução na cópia pública aprovou os 218 testes da suíte.
+Os testes incluem serviços e controllers dos dez endpoints de consulta, autorização HTTP, limite de requisições públicas, proteção de fórmulas no CSV, qualidade dos sensores, validação estrutural do frontend e Playwright com navegador real para renderização DOM, acessibilidade, navegação, tabelas e downloads PDF/JSON. A última execução na cópia pública aprovou os 230 testes da suíte.
 
 O teste de paridade ao vivo retorna sem realizar a comparação quando `RUN_LIVE_PARITY` não é `1`. Para exercitá-lo, também são necessários o projeto web original e a aplicação .NET em execução, com os endereços definidos por `ORIGINAL_WEB_URL` e `DOTNET_WEB_URL`. Os testes comuns de navegador usam dados simulados e não comprovam o login Google real nem as regras do Firebase em produção.
 
@@ -139,7 +139,8 @@ dotnet build EstacaoClimatica.sln
 - As rotas principais ficam em `DashboardController`, `ClimateQueryController`, `ChatController` e `PublicWeatherController`.
 - Acesso ao Firebase foi movido para o backend em `EstacaoClimatica.Infrastructure`.
 - O carregamento dos dados brutos do dashboard passa por `IRepositorioDadosClimaticos` e `RepositorioDadosClimaticosFirebase`.
-- O acesso Firebase usa cache curto por URL e retry/backoff simples em `FonteDadosFirebase`.
+- O acesso Firebase usa cache curto por URL e retry/backoff simples em `FonteDadosFirebase`. Consultas e chat carregam somente os ramos necessários; a leitura por data evita consultar dias inexistentes.
+- A verificação de autenticação compartilha cache por até 30 segundos, limitado à expiração do token, e confere revogação por `validSince`. Medições e limites estão em [`PERFORMANCE_2026-10-23.md`](PERFORMANCE_2026-10-23.md).
 - Os nomes literais de campos Firebase ficam centralizados em `CamposFirebase`.
 - A configuração de IA fica em `OpcoesIa`; o cliente implementado usa Gemini REST. As opções de App Check ainda não são aplicadas.
 - O assistente climático fica em `/api/chat`; o frontend envia pergunta, aba ativa, data selecionada e, quando houver, a última intenção resolvida para memória curta de conversa.

@@ -494,8 +494,31 @@ public sealed class TestesServicoAssistenteClimatico
             : new ServicoAssistenteClimatico(new RepositorioDadosClimaticosSimulado(), new ClienteGeracaoTextoSimulado(), opcoes, obterAgora);
     }
 
+    [Theory]
+    [InlineData("Qual a temperatura da sala?", "Tab1", false, false, false, true)]
+    [InlineData("Qual foi o pôr do sol hoje?", "Tab1", false, true, false, false)]
+    [InlineData("Qual foi a média de CO2?", "Tab2", false, false, false, true)]
+    [InlineData("Como está a qualidade do ar?", "Tab3", false, false, false, true)]
+    public async Task Chat_DeveBuscarSomenteRamosDaIntencao(string pergunta, string aba, bool quarto, bool solar, bool aquario, bool sala)
+    {
+        var repositorio = new RepositorioDadosClimaticosSimulado();
+        var servico = new ServicoAssistenteClimatico(repositorio, new ClienteGeracaoTextoSimulado(), new OpcoesIa { Enabled = false });
+
+        await servico.ResponderAsync(new(pergunta, aba, "03-06-2026"), CancellationToken.None);
+
+        Assert.Equal((quarto, solar, aquario, sala), repositorio.RamosSolicitados);
+    }
+
     private sealed class RepositorioDadosClimaticosSimulado : IRepositorioDadosClimaticos
     {
+        public (bool Quarto, bool Solar, bool Aquario, bool Sala)? RamosSolicitados { get; private set; }
+
+        public Task<DadosDashboardFirebase> ObterDadosPorRamosAsync(bool quarto, bool solar, bool aquario, bool sala, CancellationToken tokenCancelamento)
+        {
+            RamosSolicitados = (quarto, solar, aquario, sala);
+            return ObterDadosDashboardAsync(tokenCancelamento);
+        }
+
         public Task<DadosDashboardFirebase> ObterDadosDashboardAsync(CancellationToken tokenCancelamento)
         {
             return Task.FromResult(new DadosDashboardFirebase(

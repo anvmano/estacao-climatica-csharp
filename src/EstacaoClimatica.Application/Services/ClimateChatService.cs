@@ -39,10 +39,25 @@ public sealed partial class ServicoAssistenteClimatico : IServicoAssistenteClima
             return CriarRespostaLocal("Digite uma pergunta sobre os dados da estação climática.", IntencaoVazia());
         }
 
-        var dados = await _repositorio.ObterDadosDashboardAsync(tokenCancelamento);
         var dataSelecionada = DataFirebase.Normalizar(requisicao.SelectedDate);
-        var contexto = new ContextoAssistente(dados, requisicao.ActiveTab ?? "Tab1", dataSelecionada);
-        var intencao = await ResolverIntencaoAsync(pergunta, contexto, requisicao.PreviousIntent, tokenCancelamento);
+        var abaAtiva = requisicao.ActiveTab ?? "Tab1";
+        var intencao = await ResolverIntencaoAsync(
+            pergunta, new ContextoAssistente(new DadosDashboardFirebase(null, null, null, null), abaAtiva, dataSelecionada),
+            requisicao.PreviousIntent, tokenCancelamento);
+        var metricasSolicitadas = intencao.Metrics.Count > 0 ? intencao.Metrics : InferirMetricasPergunta(NormalizarTexto(pergunta));
+        var consultarSolar = intencao.IncludeSolar || intencao.Operation.StartsWith("solar_", StringComparison.Ordinal)
+            || metricasSolicitadas.Any(metrica => NormalizarTexto(metrica) == "ciclo_solar");
+        var consultarAqi = !consultarSolar && metricasSolicitadas.Any(EhMetricaAqi);
+        IReadOnlyList<ConfiguracaoAmbiente> ambientesParaBusca = consultarSolar ? [] : consultarAqi
+            ? new[] { _ambientes["sala"] }
+            : RedirecionarAmbientesPorMetricasExclusivas(intencao.Environments, metricasSolicitadas);
+        var dados = await _repositorio.ObterDadosPorRamosAsync(
+            ambientesParaBusca.Any(item => item.Key == "quarto"),
+            consultarSolar,
+            ambientesParaBusca.Any(item => item.Key == "aquario"),
+            ambientesParaBusca.Any(item => item.Key == "sala"),
+            tokenCancelamento);
+        var contexto = new ContextoAssistente(dados, abaAtiva, dataSelecionada);
         var resultado = ExecutarConsulta(contexto, intencao, pergunta);
 
         if (resultado.NeedsClarification)

@@ -29,15 +29,15 @@ public sealed class TestesRepositorioDadosClimaticosFirebase
     {
         var fonte = new FonteDadosFirebaseSimulada
         {
-            RespostaQuery = Elemento("""{"31-05-2026":true,"05-06-2026":true,"07-02-2106":true,"invalida":true}""")
+            RespostaQuery = Elemento("""{"31-05-2026":true,"02-06-2026":true,"03-06-2026":true,"05-06-2026":true,"07-02-2106":true,"invalida":true}""")
         };
         var repositorio = new RepositorioDadosClimaticosFirebase(fonte, new OpcoesFirebase());
 
         var resultado = await repositorio.ObterDadosDashboardAsync("03-06-2026", CancellationToken.None);
 
-        Assert.Contains("historico/Temperatura/01-06-2026", fonte.Caminhos);
-        Assert.Contains("historico/Temperatura/30-06-2026", fonte.Caminhos);
-        Assert.Equal(30, fonte.Caminhos.Count(caminho => caminho.StartsWith("historico/Temperatura/", StringComparison.Ordinal)));
+        Assert.DoesNotContain("historico/Temperatura/01-06-2026", fonte.Caminhos);
+        Assert.DoesNotContain("historico/Temperatura/30-06-2026", fonte.Caminhos);
+        Assert.Equal(3, fonte.Caminhos.Count(caminho => caminho.StartsWith("historico/Temperatura/", StringComparison.Ordinal)));
         Assert.Equal(3, fonte.Caminhos.Count(caminho => caminho.StartsWith("historico/Aquario/", StringComparison.Ordinal)));
         Assert.Contains("historico/Aquario/02-06-2026", fonte.Caminhos);
         Assert.Contains("historico/Aquario/03-06-2026", fonte.Caminhos);
@@ -51,6 +51,77 @@ public sealed class TestesRepositorioDadosClimaticosFirebase
         Assert.True(resultado.Quarto?.TryGetProperty("03-06-2026", out _));
         Assert.True(resultado.Aquario?.TryGetProperty("03-06-2026", out _));
         Assert.True(resultado.Sala?.TryGetProperty("05-06-2026", out _));
+    }
+
+    [Fact]
+    public async Task ObterDadosPorRamosAsync_DeveBuscarSomenteSala()
+    {
+        var fonte = new FonteDadosFirebaseSimulada();
+        var repositorio = new RepositorioDadosClimaticosFirebase(fonte, new OpcoesFirebase());
+
+        var resultado = await repositorio.ObterDadosPorRamosAsync(false, false, false, true, CancellationToken.None);
+
+        Assert.Equal(["historico/AirQuality"], fonte.Caminhos);
+        Assert.Null(resultado.Quarto);
+        Assert.Null(resultado.Solar);
+        Assert.Null(resultado.Aquario);
+        Assert.NotNull(resultado.Sala);
+    }
+
+    [Fact]
+    public async Task ObterDadosDashboardAsync_SemChavesShallowDevePreservarBuscaPorDatas()
+    {
+        var fonte = new FonteDadosFirebaseSimulada();
+        var repositorio = new RepositorioDadosClimaticosFirebase(fonte, new OpcoesFirebase());
+
+        await repositorio.ObterDadosDashboardAsync("03-06-2026", CancellationToken.None);
+
+        Assert.Contains("historico/Temperatura/01-06-2026", fonte.Caminhos);
+        Assert.Contains("historico/Temperatura/30-06-2026", fonte.Caminhos);
+    }
+
+    [Fact]
+    public async Task ObterDadosDashboardAsync_DeveConsultarHojeMesmoAntesDeShallowAtualizar()
+    {
+        var fonte = new FonteDadosFirebaseSimulada { RespostaQuery = Elemento("{}") };
+        var repositorio = new RepositorioDadosClimaticosFirebase(fonte, new OpcoesFirebase());
+        var hoje = DateTime.Today.ToString("dd-MM-yyyy", System.Globalization.CultureInfo.InvariantCulture);
+
+        await repositorio.ObterDadosDashboardAsync(hoje, CancellationToken.None);
+
+        Assert.Contains($"historico/Temperatura/{hoje}", fonte.Caminhos);
+        Assert.Contains($"historico/Aquario/{hoje}", fonte.Caminhos);
+        Assert.Contains($"historico/AirQuality/{hoje}", fonte.Caminhos);
+    }
+
+    [Fact]
+    public async Task ObterDadosDashboardAsync_PrimeiroDiaDoMesDeveConsultarDiaAnterior()
+    {
+        var fonte = new FonteDadosFirebaseSimulada
+        {
+            RespostaQuery = Elemento("""{"31-05-2026":true,"01-06-2026":true}""")
+        };
+        var repositorio = new RepositorioDadosClimaticosFirebase(fonte, new OpcoesFirebase());
+
+        await repositorio.ObterDadosDashboardAsync("01-06-2026", CancellationToken.None);
+
+        Assert.Contains("historico/Temperatura/31-05-2026", fonte.Caminhos);
+        Assert.Contains("historico/Aquario/31-05-2026", fonte.Caminhos);
+        Assert.Contains("historico/AirQuality/31-05-2026", fonte.Caminhos);
+    }
+
+    [Fact]
+    public async Task ObterDadosDashboardAsync_SensorSemDadosNaoDeveBuscarDiasAusentes()
+    {
+        var fonte = new FonteDadosFirebaseSimulada { RespostaQuery = Elemento("{}") };
+        var repositorio = new RepositorioDadosClimaticosFirebase(fonte, new OpcoesFirebase());
+
+        var dados = await repositorio.ObterDadosDashboardAsync("03-06-2026", CancellationToken.None);
+
+        Assert.Equal(["historico/NascePorDoSol"], fonte.Caminhos);
+        Assert.Null(dados.Quarto);
+        Assert.Null(dados.Aquario);
+        Assert.Null(dados.Sala);
     }
 
     private static JsonElement Elemento(string json) => JsonSerializer.Deserialize<JsonElement>(json);

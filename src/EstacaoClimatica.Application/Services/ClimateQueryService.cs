@@ -41,7 +41,7 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
         CancellationToken tokenCancelamento)
     {
         var definicao = ObterAmbiente(ambiente);
-        var dados = await _repositorio.ObterDadosDashboardAsync(tokenCancelamento);
+        var dados = await ObterDadosAmbienteAsync(definicao.Chave, tokenCancelamento);
         var registro = LeitorRegistrosFirebase.EnumerarRegistros(definicao.SelecionarRaiz(dados), maisRecentesPrimeiro: true)
             .Select(item => (Record: item, Timestamp: CriarTimestamp(item)))
             .FirstOrDefault(item => item.Timestamp is not null);
@@ -72,7 +72,7 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
         var definicao = ObterAmbiente(ambiente);
         var periodo = ObterPeriodo(null, inicio, fim);
         var metricasSelecionadas = ResolverMetricas(definicao, SepararLista(metricas), permitirTodas: true);
-        var dados = await _repositorio.ObterDadosDashboardAsync(tokenCancelamento);
+        var dados = await ObterDadosAmbienteAsync(definicao.Chave, tokenCancelamento);
 
         var registros = LeitorRegistrosFirebase.EnumerarRegistros(definicao.SelecionarRaiz(dados), maisRecentesPrimeiro: false)
             .Select(item => (Record: item, Timestamp: CriarTimestamp(item)))
@@ -166,7 +166,7 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
         var periodo = ObterPeriodo(data, inicio, fim);
         var dados = periodo.From == periodo.To
             ? await _repositorio.ObterDadosDashboardAsync(FormatarData(periodo.From), tokenCancelamento)
-            : await _repositorio.ObterDadosDashboardAsync(tokenCancelamento);
+            : await ObterDadosAmbienteAsync("sala", tokenCancelamento);
         var amostras = LeitorRegistrosFirebase.EnumerarRegistros(dados.Sala)
             .Select(item => (Record: item, Timestamp: CriarTimestamp(item)))
             .Where(item => item.Timestamp is not null && item.Timestamp.Value.Date >= periodo.From && item.Timestamp.Value.Date <= periodo.To)
@@ -286,7 +286,10 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
             throw new ArgumentException($"Métrica não reconhecida: {invalida}.");
         }
 
-        var dados = await _repositorio.ObterDadosDashboardAsync(tokenCancelamento);
+        var dados = await _repositorio.ObterDadosPorRamosAsync(
+            ambientes.Any(item => item.Chave == "quarto"), false,
+            ambientes.Any(item => item.Chave == "aquario"),
+            ambientes.Any(item => item.Chave == "sala"), tokenCancelamento);
         var seriesClimaticas = new List<ComparisonSeries>();
         foreach (var ambienteAtual in ambientes)
         {
@@ -357,6 +360,10 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
             "text/csv; charset=utf-8",
             Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(CriarCsv(dashboard, chaveAba))).ToArray());
     }
+
+    private Task<DadosDashboardFirebase> ObterDadosAmbienteAsync(string ambiente, CancellationToken tokenCancelamento) =>
+        _repositorio.ObterDadosPorRamosAsync(
+            ambiente == "quarto", false, ambiente == "aquario", ambiente == "sala", tokenCancelamento);
 
     private static IReadOnlyList<DefinicaoAmbiente> CriarAmbientes() =>
     [

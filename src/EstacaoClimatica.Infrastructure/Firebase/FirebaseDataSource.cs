@@ -37,12 +37,12 @@ public sealed class FonteDadosFirebase : IFonteDadosFirebase
         // Cache curto por URL evita baixar os mesmos ramos Firebase em atualizações muito próximas.
         if (TentarObterDoCache(url, out var valorCache))
         {
-            return Clonar(valorCache);
+            return valorCache;
         }
 
         var valor = await ObterComRepeticaoAsync(url, tokenCancelamento);
         GuardarNoCache(url, valor);
-        return Clonar(valor);
+        return valor;
     }
 
     private string MontarUrl(string caminho, string? parametrosConsulta)
@@ -74,7 +74,7 @@ public sealed class FonteDadosFirebase : IFonteDadosFirebase
                 resposta.EnsureSuccessStatusCode();
 
                 await using var fluxo = await resposta.Content.ReadAsStreamAsync(tokenCancelamento);
-                var documento = await JsonDocument.ParseAsync(fluxo, cancellationToken: tokenCancelamento);
+                using var documento = await JsonDocument.ParseAsync(fluxo, cancellationToken: tokenCancelamento);
 
                 return documento.RootElement.ValueKind == JsonValueKind.Null
                     ? null
@@ -114,14 +114,6 @@ public sealed class FonteDadosFirebase : IFonteDadosFirebase
         EntradasCache[url] = new EntradaCache(
             valor,
             DateTimeOffset.UtcNow.AddSeconds(_opcoes.CacheDurationSeconds));
-    }
-
-    private static JsonElement? Clonar(JsonElement? valor)
-    {
-        // JsonElement é ligado ao documento de origem; clones evitam uso acidental de instâncias descartadas.
-        return valor is null
-            ? null
-            : valor.Value.Clone();
     }
 
     private static bool DeveTentarNovamente(System.Net.HttpStatusCode codigoStatus)

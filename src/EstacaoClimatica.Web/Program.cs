@@ -41,7 +41,11 @@ construtor.Services.AddScoped<IRepositorioDadosClimaticos, RepositorioDadosClima
 construtor.Services.AddHttpClient<IFonteDadosFirebase, FonteDadosFirebase>();
 construtor.Services.AddHttpClient<IClienteGeracaoTexto, ClienteGeracaoTextoGemini>();
 construtor.Services.AddHttpClient<IServicoClimaPublico, ServicoClimaPublico>();
-construtor.Services.AddHttpClient<IVerificadorTokenAcessoInterno, VerificadorTokenAcessoFirebase>();
+construtor.Services.AddHttpClient("firebase-auth");
+construtor.Services.AddSingleton<IVerificadorTokenAcessoInterno>(servicos =>
+    new VerificadorTokenAcessoFirebase(
+        servicos.GetRequiredService<IHttpClientFactory>().CreateClient("firebase-auth"),
+        servicos.GetRequiredService<OpcoesAcessoInterno>()));
 
 var aplicacao = construtor.Build();
 

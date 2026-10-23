@@ -19,13 +19,16 @@ public sealed class RepositorioDadosClimaticosFirebase : IRepositorioDadosClimat
 
     public async Task<DadosDashboardFirebase> ObterDadosDashboardAsync(CancellationToken tokenCancelamento)
     {
-        var caminhos = _opcoesFirebase.Paths;
+        return await ObterDadosPorRamosAsync(true, true, true, true, tokenCancelamento);
+    }
 
-        // Os quatro ramos são independentes; buscar em paralelo reduz o tempo de atualização do dashboard.
-        var tarefaQuarto = _firebase.ObterCaminhoAsync(caminhos.Room, tokenCancelamento);
-        var tarefaSolar = _firebase.ObterCaminhoAsync(caminhos.Solar, tokenCancelamento);
-        var tarefaAquario = _firebase.ObterCaminhoAsync(caminhos.Aquarium, tokenCancelamento);
-        var tarefaSala = _firebase.ObterCaminhoAsync(caminhos.LivingRoom, tokenCancelamento);
+    public async Task<DadosDashboardFirebase> ObterDadosPorRamosAsync(bool quarto, bool solar, bool aquario, bool sala, CancellationToken tokenCancelamento)
+    {
+        var caminhos = _opcoesFirebase.Paths;
+        var tarefaQuarto = quarto ? _firebase.ObterCaminhoAsync(caminhos.Room, tokenCancelamento) : Task.FromResult<JsonElement?>(null);
+        var tarefaSolar = solar ? _firebase.ObterCaminhoAsync(caminhos.Solar, tokenCancelamento) : Task.FromResult<JsonElement?>(null);
+        var tarefaAquario = aquario ? _firebase.ObterCaminhoAsync(caminhos.Aquarium, tokenCancelamento) : Task.FromResult<JsonElement?>(null);
+        var tarefaSala = sala ? _firebase.ObterCaminhoAsync(caminhos.LivingRoom, tokenCancelamento) : Task.FromResult<JsonElement?>(null);
 
         await Task.WhenAll(tarefaQuarto, tarefaSolar, tarefaAquario, tarefaSala);
 
@@ -65,26 +68,26 @@ public sealed class RepositorioDadosClimaticosFirebase : IRepositorioDadosClimat
 
     private async Task<JsonElement?> ObterCaminhoComUltimaDataAsync(string caminho, IReadOnlyList<string> datas, CancellationToken tokenCancelamento)
     {
-        var ultimaData = await ObterUltimaDataDisponivelAsync(caminho, tokenCancelamento);
-        var datasComUltima = ultimaData is null
-            ? datas
-            : datas.Concat(new[] { ultimaData }).Distinct(StringComparer.Ordinal).ToArray();
-
-        return await ObterCaminhoPorDatasAsync(caminho, datasComUltima, tokenCancelamento);
-    }
-
-    private async Task<string?> ObterUltimaDataDisponivelAsync(string caminho, CancellationToken tokenCancelamento)
-    {
         var chaves = await _firebase.ObterCaminhoComQueryAsync(caminho, "shallow=true", tokenCancelamento);
-        if (chaves is null || chaves.Value.ValueKind != JsonValueKind.Object) return null;
-
-        return chaves.Value
-            .EnumerateObject()
-            .Select(propriedade => new { propriedade.Name, Data = ConverterDataFirebase(propriedade.Name) })
+        var datasDisponiveis = chaves is { ValueKind: JsonValueKind.Object } valor
+            ? valor.EnumerateObject().Select(item => item.Name).ToHashSet(StringComparer.Ordinal)
+            : null;
+        var ultimaData = datasDisponiveis?
+            .Select(nome => new { Nome = nome, Data = ConverterDataFirebase(nome) })
             .Where(item => item.Data is not null && item.Data.Value.Date <= DateTime.Today)
             .OrderByDescending(item => item.Data)
-            .Select(item => item.Name)
+            .Select(item => item.Nome)
             .FirstOrDefault();
+        // O dia atual pode surgir enquanto o shallow ainda está no cache de 30 segundos.
+        var hoje = FormatarDataFirebase(DateTime.Today);
+        var datasExistentes = datasDisponiveis is null
+            ? datas
+            : datas.Where(data => datasDisponiveis.Contains(data) || data == hoje).ToArray();
+        var datasComUltima = ultimaData is null
+            ? datasExistentes
+            : datasExistentes.Concat(new[] { ultimaData }).Distinct(StringComparer.Ordinal).ToArray();
+
+        return await ObterCaminhoPorDatasAsync(caminho, datasComUltima, tokenCancelamento);
     }
 
     private async Task<JsonElement?> ObterCaminhoPorDatasAsync(string caminho, IReadOnlyList<string> datas, CancellationToken tokenCancelamento)

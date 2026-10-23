@@ -42,6 +42,49 @@ public sealed class TestesVerificadorTokenAcessoFirebase
         Assert.Equal(1, manipulador.QuantidadeRequisicoes);
     }
 
+    [Fact]
+    public async Task ObterEmailAsync_DeveRejeitarJwtExpiradoMesmoComRespostaRemotaPositiva()
+    {
+        var manipulador = new ManipuladorMensagemHttpSimulado(HttpStatusCode.OK, """{"users":[{"email":"usuario@example.com"}]}""");
+        var verificador = new VerificadorTokenAcessoFirebase(new HttpClient(manipulador), new OpcoesAcessoInterno());
+        var payload = Convert.ToBase64String(Encoding.UTF8.GetBytes("""{"exp":1}""")).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+        Assert.Null(await verificador.ObterEmailAsync($"header.{payload}.signature", CancellationToken.None));
+        Assert.Equal(0, manipulador.QuantidadeRequisicoes);
+    }
+
+    [Fact]
+    public async Task ObterEmailAsync_JwtMalformadoNaoDeveCausarErroAntesDaVerificacaoRemota()
+    {
+        var manipulador = new ManipuladorMensagemHttpSimulado(HttpStatusCode.BadRequest, "{}");
+        var verificador = new VerificadorTokenAcessoFirebase(new HttpClient(manipulador), new OpcoesAcessoInterno());
+        var payload = Convert.ToBase64String(Encoding.UTF8.GetBytes("[]")).TrimEnd('=');
+
+        Assert.Null(await verificador.ObterEmailAsync($"header.{payload}.signature", CancellationToken.None));
+        Assert.Equal(1, manipulador.QuantidadeRequisicoes);
+    }
+
+    [Fact]
+    public async Task ObterEmailAsync_DeveRejeitarTokenRevogadoPeloValidSince()
+    {
+        var agora = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var manipulador = new ManipuladorMensagemHttpSimulado(HttpStatusCode.OK,
+            $$"""{"users":[{"email":"usuario@example.com","validSince":"{{agora - 30}}"}]}""");
+        var verificador = new VerificadorTokenAcessoFirebase(new HttpClient(manipulador), new OpcoesAcessoInterno());
+
+        Assert.Null(await verificador.ObterEmailAsync(CriarJwt(agora - 60, agora + 3600), CancellationToken.None));
+        Assert.Equal("usuario@example.com", await verificador.ObterEmailAsync(CriarJwt(agora - 20, agora + 3600), CancellationToken.None));
+        Assert.Equal(2, manipulador.QuantidadeRequisicoes);
+    }
+
+    private static string CriarJwt(long autenticadoEm, long expiraEm)
+    {
+        var payload = Convert.ToBase64String(Encoding.UTF8.GetBytes(
+            $$"""{"auth_time":{{autenticadoEm}},"exp":{{expiraEm}}}"""))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        return $"header.{payload}.signature";
+    }
+
     [Theory]
     [InlineData("{}")]
     [InlineData("{\"users\":[]}")]
