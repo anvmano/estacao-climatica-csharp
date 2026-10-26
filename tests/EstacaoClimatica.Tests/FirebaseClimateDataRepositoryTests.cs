@@ -126,16 +126,65 @@ public sealed class TestesRepositorioDadosClimaticosFirebase
 
     private static JsonElement Elemento(string json) => JsonSerializer.Deserialize<JsonElement>(json);
 
+    [Fact]
+    public async Task UltimaMedicao_DeveBuscarDiaAnteriorAoMesQuandoUltimaDataSoTemSentinelas()
+    {
+        var fonte = new FonteDadosFirebaseSimulada
+        {
+            RespostaQuery = Elemento("""{"31-05-2026":true,"03-06-2026":true}"""),
+            Consultar = caminho => Elemento(caminho.EndsWith("31-05-2026")
+                ? """{"12-00":{"1":{"Temperatura":25,"Umidade":50,"temperatura":25,"umidade":50,"temperaturaDS18B20":25}}}"""
+                : """{"12-00":{"1":{"Temperatura":85,"Umidade":50,"temperatura":-127,"umidade":50,"temperaturaDS18B20":85}}}""")
+        };
+        var repositorio = new RepositorioDadosClimaticosFirebase(fonte, new OpcoesFirebase());
+        var dados = await repositorio.ObterDadosDashboardAsync("03-06-2026", CancellationToken.None);
+        Assert.True(dados.Quarto?.TryGetProperty("31-05-2026", out _));
+        Assert.True(dados.Sala?.TryGetProperty("31-05-2026", out _));
+        Assert.True(dados.Aquario?.TryGetProperty("31-05-2026", out _));
+        Assert.Empty(dados.RamosComFalha);
+    }
+
+    [Fact]
+    public async Task FalhaDeRamo_DevePreservarOutrosAmbientesESinalizarFalha()
+    {
+        var fonte = new FonteDadosFirebaseSimulada
+        {
+            RespostaQuery = Elemento("""{"03-06-2026":true}"""),
+            Consultar = caminho => caminho.Contains("AirQuality")
+                ? throw new HttpRequestException("indisponivel") : Elemento("{}")
+        };
+        var dados = await new RepositorioDadosClimaticosFirebase(fonte, new OpcoesFirebase())
+            .ObterDadosDashboardAsync("03-06-2026", CancellationToken.None);
+        Assert.Equal(["sala"], dados.RamosComFalha);
+        Assert.Null(dados.Sala);
+        Assert.NotNull(dados.Quarto);
+        Assert.NotNull(dados.Aquario);
+        Assert.NotNull(dados.Solar);
+    }
+
+    [Fact]
+    public async Task Cancelamento_NaoDeveVirarRespostaParcial()
+    {
+        using var controle = new CancellationTokenSource();
+        controle.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new RepositorioDadosClimaticosFirebase(new FonteDadosFirebaseSimulada(), new OpcoesFirebase())
+                .ObterDadosDashboardAsync("03-06-2026", controle.Token));
+    }
+
     private sealed class FonteDadosFirebaseSimulada : IFonteDadosFirebase
     {
         public List<string> Caminhos { get; } = [];
         public List<(string Caminho, string Query)> Consultas { get; } = [];
         public JsonElement? RespostaQuery { get; init; }
+        public Func<string, JsonElement?>? Consultar { get; init; }
 
         public Task<JsonElement?> ObterCaminhoAsync(string caminho, CancellationToken tokenCancelamento)
         {
+            tokenCancelamento.ThrowIfCancellationRequested();
             Caminhos.Add(caminho);
-            return Task.FromResult<JsonElement?>(Elemento("""{"amostras":1}"""));
+            if (Consultar is not null) return Task.FromResult(Consultar(caminho));
+            return Task.FromResult<JsonElement?>(Elemento("""{"12-00":{"registro":{"Temperatura":25,"Umidade":50,"temperatura":25,"umidade":50,"temperaturaDS18B20":25}}}"""));
         }
 
         public Task<JsonElement?> ObterCaminhoComQueryAsync(string caminho, string parametrosConsulta, CancellationToken tokenCancelamento)

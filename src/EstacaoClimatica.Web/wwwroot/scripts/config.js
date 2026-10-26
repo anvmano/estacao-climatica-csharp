@@ -103,6 +103,11 @@ var padroesGrafico = {
         evento?.native || evento,
         elementosAtivos
     ),
+    onClick: (evento, elementosAtivos, grafico) => window.SincronizadorGraficos?.tratarInteracao(
+        grafico,
+        evento?.native || evento,
+        elementosAtivos
+    ),
     plugins: {
         legend: { display: false },
         tooltip: {

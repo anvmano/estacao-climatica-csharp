@@ -81,6 +81,56 @@ public sealed class TestesFonteDadosFirebase
         MaxRetryAttempts = tentativas
     };
 
+    [Fact]
+    public async Task ConsultasSimultaneas_DeveReutilizarRespostaELimitarConcorrencia()
+    {
+        var manipulador = new ManipuladorConcorrente();
+        using var cliente = new HttpClient(manipulador);
+        var fonte = new FonteDadosFirebase(cliente, Opcoes(cache: 60));
+        var caminho = $"teste/{Guid.NewGuid():N}";
+        var resultados = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => fonte.ObterCaminhoAsync(caminho, CancellationToken.None)));
+        Assert.All(resultados, valor => Assert.Equal(42, valor?.GetProperty("valor").GetInt32()));
+        Assert.Equal(1, manipulador.Consultas);
+
+        await Task.WhenAll(Enumerable.Range(0, 12).Select(indice => fonte.ObterCaminhoAsync($"{caminho}/{indice}", CancellationToken.None)));
+        Assert.Equal(13, manipulador.Consultas);
+        Assert.InRange(manipulador.Pico, 1, 4);
+    }
+
+    [Fact]
+    public async Task AtualizacaoFirebase_DeveInvalidarCacheDoRamo()
+    {
+        var manipulador = new ManipuladorSequencial([CriarJson(HttpStatusCode.OK, "1"), CriarJson(HttpStatusCode.OK, "2")]);
+        using var cliente = new HttpClient(manipulador);
+        var opcoes = Opcoes(cache: 60);
+        var fonte = new FonteDadosFirebase(cliente, opcoes);
+        var ramo = $"teste/{Guid.NewGuid():N}";
+        Assert.Equal(1, (await fonte.ObterCaminhoAsync($"{ramo}/03-06-2026", CancellationToken.None))?.GetInt32());
+        FonteDadosFirebase.InvalidarRamo(opcoes.DatabaseUrl, ramo);
+        Assert.Equal(2, (await fonte.ObterCaminhoAsync($"{ramo}/03-06-2026", CancellationToken.None))?.GetInt32());
+    }
+
+    private sealed class ManipuladorConcorrente : HttpMessageHandler
+    {
+        public int Consultas;
+        public int Pico;
+        private int _ativas;
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage pedido, CancellationToken token)
+        {
+            Interlocked.Increment(ref Consultas);
+            var ativas = Interlocked.Increment(ref _ativas);
+            int anterior;
+            do { anterior = Pico; } while (ativas > anterior && Interlocked.CompareExchange(ref Pico, ativas, anterior) != anterior);
+            try
+            {
+                await Task.Delay(40, token);
+                return CriarJson(HttpStatusCode.OK, """{"valor":42}""");
+            }
+            finally { Interlocked.Decrement(ref _ativas); }
+        }
+    }
+
     private static HttpResponseMessage CriarJson(HttpStatusCode status, string corpo) => new(status)
     {
         Content = new StringContent(corpo, Encoding.UTF8, "application/json")

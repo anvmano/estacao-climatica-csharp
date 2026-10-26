@@ -3,7 +3,7 @@
 (function () {
     const versaoSdk = '12.13.0';
     const configuracaoFirebase = {
-        apiKey: 'SUA_CHAVE_FIREBASE',
+        apiKey: "SUA_CHAVE_FIREBASE",
         authDomain: 'seu-projeto.firebaseapp.com',
         projectId: 'seu-projeto',
         appId: 'SEU_APP_ID_FIREBASE'
@@ -110,6 +110,7 @@
         if (!token) throw new Error('Usuário interno não autorizado.');
         const cabecalhos = new Headers(opcoes.headers || {});
         cabecalhos.set('Authorization', `Bearer ${token}`);
+        cabecalhos.set('X-Climate-Timezone', Intl.DateTimeFormat().resolvedOptions().timeZone);
         return fetch(url, { ...opcoes, headers: cabecalhos });
     }
 

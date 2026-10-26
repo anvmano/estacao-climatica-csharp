@@ -90,7 +90,7 @@ internal static class MontadorQualidadeDados
             avisos.Add("Série constante em zero; confirmar se é leitura válida, limite de detecção ou falha do sensor.");
         }
 
-        var referencia = agora ?? DateTime.Now;
+        var referencia = agora ?? RelogioClimatico.Agora;
         var esperado = LeitorRegistrosFirebase.EnumerarDatas(dados).Sum(par =>
             par.Date == referencia.ToString("dd-MM-yyyy")
                 ? Math.Min(LeiturasEsperadasPorDia, referencia.Hour + 1)

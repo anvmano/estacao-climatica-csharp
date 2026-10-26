@@ -8,7 +8,10 @@ public sealed record DashboardResponse(
     SolarDashboard Solar,
     AqiDashboard? Aqi,
     StationLatestDashboard? Latest = null,
-    InternalEnvironmentalInsights? Insights = null);
+    InternalEnvironmentalInsights? Insights = null)
+{
+    public IReadOnlyList<string> FailedBranches { get; init; } = [];
+}
 
 public sealed record StationLatestDashboard(
     LatestMetricMeasurement? SalaTemperatura,

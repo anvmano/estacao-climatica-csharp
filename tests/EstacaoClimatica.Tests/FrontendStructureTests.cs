@@ -173,7 +173,7 @@ public sealed partial class TestesEstruturaInterface
         Assert.Contains("['rain', 'publicWeather', 'publicForecast'].includes(graficoOrigem.$zoomKind)", zoom);
         Assert.Contains("HORAS_OBSERVADAS = 24", chuva);
         Assert.Contains("HORAS_PREVISTAS = 12", chuva);
-        Assert.Contains("label: 'Chance de chuva'", chuva);
+        Assert.Contains("label: \"Chance de chuva\"", chuva);
         Assert.Contains("window.SincronizadorGraficos", sincronizacao);
         Assert.Contains("45 * 60 * 1000", sincronizacao);
         Assert.Contains("window.ClimaChuva", chuva);
@@ -237,8 +237,8 @@ public sealed partial class TestesEstruturaInterface
 
         Assert.Contains("HORAS_OBSERVADAS = 24", chuva);
         Assert.Contains("HORAS_PREVISTAS = 12", chuva);
-        Assert.Contains("CONSULTA_MOVEL = '(max-width: 640px)'", chuva);
-        Assert.Contains("onResize: grafico => sincronizarModoResponsivo(grafico, modo)", chuva);
+        Assert.Contains("CONSULTA_MOVEL = \"(max-width: 640px)\"", chuva);
+        Assert.Contains("grafico => sincronizarModoResponsivo(grafico)", chuva);
         Assert.Contains("aria-pressed=\"true\">Precipitação", chuva);
         Assert.Contains("aria-pressed=\"false\">Chance", chuva);
         Assert.Contains("window.ClimaChuva", chuva);
@@ -255,7 +255,7 @@ public sealed partial class TestesEstruturaInterface
         Assert.DoesNotContain(": 'Modo público'", publico);
         Assert.Contains(".public-app.has-results .public-hero", publicoCss);
         Assert.Contains("scroll-snap-type: x mandatory", publicoCss);
-        Assert.Contains("#publicChartRain { height: 200px !important; }", responsivo);
+        Assert.Matches(@"#publicChartRain,\s*#publicChartRainProbability\s*\{\s*height: 200px !important;", responsivo);
         Assert.Contains("background: rgba(8, 15, 30, 0.88)", responsivo);
         Assert.Contains("function obterOpcoesPontosEventosSolares", solar);
         Assert.Contains("pointHitRadius: movel ? 24 : 18", solar);
@@ -294,7 +294,9 @@ public sealed partial class TestesEstruturaInterface
     {
         var html = LerIndex();
 
-        Assert.Contains("scripts/chat.js", html);
+        Assert.Contains("scripts/runtime-loader.js", html);
+        Assert.DoesNotContain("src=\"scripts/chat.js", html);
+        Assert.Contains("scripts/chat.js", File.ReadAllText(Path.Combine(RaizArquivosWeb, "scripts", "runtime-loader.js")));
         Assert.Contains("data-chat-question", html);
         Assert.Contains("Assistente climático", html);
         Assert.DoesNotContain("scripts/ai-service.js", html);

@@ -450,7 +450,7 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
     private static double? LerValor(JsonElement item, DefinicaoAmbiente ambiente, DefinicaoConsultaMetrica metrica)
     {
         var valor = LeitorNumerosJson.ObterNumero(item, metrica.Chave);
-        return ambiente.Chave == "aquario" ? NormalizadorMedicoesAquario.NormalizarValorMedicao(metrica.Chave, valor) : valor;
+        return NormalizadorMedicoesAquario.NormalizarValorMedicao(metrica.Chave, valor);
     }
 
     private static DateTime? CriarTimestamp(RegistroFirebase registro)
@@ -484,7 +484,7 @@ public sealed class ServicoConsultasClimaticas : IServicoConsultasClimaticas
 
     private static DateTime ObterData(string? data)
     {
-        if (string.IsNullOrWhiteSpace(data)) return DateTime.Today;
+        if (string.IsNullOrWhiteSpace(data)) return RelogioClimatico.Hoje;
         return DataFirebase.InterpretarDataFirebase(data)
             ?? throw new ArgumentException("Data inválida. Use o formato dd-MM-yyyy.");
     }

@@ -6,7 +6,9 @@ internal static class NormalizadorMedicoesAquario
 {
     public static double? NormalizarValorMedicao(string chave, double? valor)
     {
-        if (valor is null) return null;
+        if (valor is null || !double.IsFinite(valor.Value)) return null;
+        if (chave is CamposFirebase.Quarto.Temperatura or CamposFirebase.Sala.Temperatura or CamposFirebase.Aquario.Temperatura
+            && valor is -127 or 85) return null;
 
         return chave switch
         {

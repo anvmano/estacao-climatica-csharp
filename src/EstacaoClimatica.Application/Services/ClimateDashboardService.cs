@@ -16,7 +16,7 @@ public sealed class ServicoDashboardClimatico : IServicoDashboardClimatico
     public ServicoDashboardClimatico(
         IRepositorioDadosClimaticos repositorio,
         CoresAplicacao cores)
-        : this(repositorio, cores, () => DateTime.Now)
+        : this(repositorio, cores, () => RelogioClimatico.Agora)
     {
     }
 
@@ -39,7 +39,7 @@ public sealed class ServicoDashboardClimatico : IServicoDashboardClimatico
         var dados = await _repositorio.ObterDadosDashboardAsync(dataSelecionada, tokenCancelamento);
 
         var aqi = MontadorDashboardAqi.Montar(dados.Sala);
-        var ultimasMedicoes = MontadorUltimasMedicoesEstacao.Montar(dados.Quarto, dados.Sala, dados.Aquario);
+        var ultimasMedicoes = MontadorUltimasMedicoesEstacao.Montar(dados.Quarto, dados.Sala, dados.Aquario, _obterAgora());
         var riscoSala = _servicoInsights.AvaliarRiscoMofo(
             ultimasMedicoes.SalaTemperatura?.Value,
             ultimasMedicoes.SalaUmidade?.Value);
@@ -60,6 +60,7 @@ public sealed class ServicoDashboardClimatico : IServicoDashboardClimatico
             MontadorDashboardSolar.Montar(dados.Solar, dataSelecionada, _obterAgora()),
             aqi,
             ultimasMedicoes,
-            new InternalEnvironmentalInsights(ventilacao, riscoSala, riscoQuarto));
+            new InternalEnvironmentalInsights(ventilacao, riscoSala, riscoQuarto))
+        { FailedBranches = dados.RamosComFalha };
     }
 }

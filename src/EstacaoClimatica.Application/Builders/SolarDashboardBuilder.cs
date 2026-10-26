@@ -21,7 +21,7 @@ internal static class MontadorDashboardSolar
         var eventosDoDia = raiz is null
             ? null
             : LerEventosSolares(ObterPrimeiroItemSolar(LeitorRegistrosFirebase.ObterElementoData(raiz, dataSelecionada)));
-        var dataAtual = (agora ?? DateTime.Now).ToString("dd-MM-yyyy");
+        var dataAtual = (agora ?? RelogioClimatico.Agora).ToString("dd-MM-yyyy");
         var eventosAtuais = dataAtual == dataSelecionada
             ? eventosDoDia
             : raiz is null

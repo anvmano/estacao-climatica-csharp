@@ -6,4 +6,7 @@ public sealed record DadosDashboardFirebase(
     JsonElement? Quarto,
     JsonElement? Solar,
     JsonElement? Aquario,
-    JsonElement? Sala);
+    JsonElement? Sala)
+{
+    public IReadOnlyList<string> RamosComFalha { get; init; } = [];
+}

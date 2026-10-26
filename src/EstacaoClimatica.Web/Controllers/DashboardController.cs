@@ -22,6 +22,7 @@ public sealed class DashboardController : ControllerBase
             return BadRequest(new { message = "Data inválida. Use o formato dd-MM-yyyy." });
 
         var dashboard = await _servico.ObterDashboardAsync(date, tokenCancelamento);
+        if (HttpContext is not null) Response.Headers["X-Climate-Updates"] = "enabled";
         return Ok(dashboard);
     }
 

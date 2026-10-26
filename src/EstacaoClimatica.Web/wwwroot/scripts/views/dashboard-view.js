@@ -47,12 +47,19 @@ function renderizarEstatisticas(id, estatisticas) {
 function renderizarGradeGraficos(id, serieGrafico, nomeSecao) {
     const elementoDom = document.getElementById(id);
     if (!elementoDom) return;
-    elementoDom.innerHTML = '';
+    const ids = new Set(serieGrafico.map(serie => serie.id));
+    elementoDom.querySelectorAll('canvas').forEach(canvas => {
+        if (ids.has(canvas.id)) return;
+        graficosInstancias[canvas.id]?.destroy();
+        delete graficosInstancias[canvas.id];
+        canvas.closest('.chart-card')?.remove();
+    });
 
     serieGrafico.forEach(seriesClimaticas => {
         const rotuloCartao = seriesClimaticas.id === 'plotsPressaoSala' ? 'Pressão' : seriesClimaticas.label;
-        const cartao = criarCartaoGrafico(seriesClimaticas.id, rotuloCartao, `${seriesClimaticas.label} - ${nomeSecao}`);
-        elementoDom.appendChild(cartao);
+        const cartao = document.getElementById(seriesClimaticas.id)?.closest('.chart-card')
+            || criarCartaoGrafico(seriesClimaticas.id, rotuloCartao, `${seriesClimaticas.label} - ${nomeSecao}`);
+        if (cartao.parentElement !== elementoDom) elementoDom.appendChild(cartao);
         aplicarAoGrafico(cartao, seriesClimaticas.quality);
         criarGraficoLinha(seriesClimaticas.id, seriesClimaticas, cartao, nomeSecao);
     });
@@ -76,14 +83,12 @@ function criarCartaoGrafico(idTelaGrafico, rotulo, rotuloAcessivel) {
 function criarGraficoLinha(idTelaGrafico, seriesClimaticas, cartao, nomeSecao) {
     const canvas = document.getElementById(idTelaGrafico);
     if (!canvas) return;
-    if (graficosInstancias[idTelaGrafico]) {
-        window.SincronizadorGraficos?.desregistrar(graficosInstancias[idTelaGrafico]);
-        graficosInstancias[idTelaGrafico].destroy();
-    }
 
     limparMensagemGrafico(cartao);
     const possuiPontos = seriesClimaticas.points.some(ponto => Number.isFinite(ponto.value));
     if (!possuiPontos) {
+        window.SincronizadorGraficos?.desregistrar(graficosInstancias[idTelaGrafico]);
+        graficosInstancias[idTelaGrafico]?.destroy();
         // Mantém o card visível, mas troca o canvas por uma mensagem contextual da métrica.
         delete graficosInstancias[idTelaGrafico];
         renderizarMensagemGrafico(cartao, obterMensagemGraficoVazio(idTelaGrafico, seriesClimaticas, nomeSecao));
@@ -98,7 +103,7 @@ function criarGraficoLinha(idTelaGrafico, seriesClimaticas, cartao, nomeSecao) {
     const tituloEixo = obterTituloEixoGrafico(seriesClimaticas);
     const faixa = obterFaixaConfortoSerie(seriesClimaticas);
 
-    const grafico = new Chart(contextoDesenho, {
+    const grafico = criarOuAtualizarGrafico(contextoDesenho, {
         type: 'line',
         data: {
             labels: seriesClimaticas.points.map(ponto => ponto.label),

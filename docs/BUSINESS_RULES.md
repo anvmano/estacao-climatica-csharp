@@ -26,17 +26,29 @@ Objetivo: garantir uma data para consulta.
 
 Entradas: `string? data`.
 
-Saidas: data recebida se nao vazia; caso contrario `DateTime.Today` em `dd-MM-yyyy`.
+Saidas: data recebida se nao vazia; caso contrario `RelogioClimatico.Hoje` em `dd-MM-yyyy`.
 
 Impacto: todo dashboard depende da data retornada.
 
-Dependencias: `DateTime.Today`, `CultureInfo.InvariantCulture`.
+Dependencias: `RelogioClimatico`, `CultureInfo.InvariantCulture`.
 
 O que acontece se for alterada: filtros podem consultar datas erradas.
 
 Criticidade: Critica.
 
-## Regra: Formato de data Firebase
+## Paridade temporal, dados e atualizacao (25/10/2026)
+
+- Temperaturas sentinela `-127` e `85` sao ausentes (`null`) em Sala, Quarto e Aquario; continuam as calibracoes TDS/10 e turbidez/1000. Dados ausentes nao viram zero.
+- Horarios invalidos sao descartados. Ultimas leituras nao podem estar no futuro; qualidade acompanha a data da leitura efetivamente usada. Se a ultima data nao tem valor valido, a consulta reduzida busca datas anteriores disponiveis.
+- O header opcional `X-Climate-Timezone` define o relogio da requisicao; fuso invalido retorna 400. Sem header, preserva o fuso local do servidor. Nomes e formatos externos permanecem iguais.
+- Uma resposta atrasada nao pode sobrescrever a data atual nem reativar o painel depois de sair. Uma falha de ramo preserva dados anteriores somente quando a data coincide; a interface sinaliza a falha.
+- SSE notifica alteracoes e falhas por ramo; reconecta apos interrupcao, agrupa eventos proximos e cancela ao sair do painel. A sessao HTTP e renovada a cada cinco minutos para refazer a autorizacao.
+- Chuva publica: dois graficos separados, 24 horas anteriores e 12 futuras. Chuva combinada privada/PDF: manter o modulo do original, incluindo janela de chance com 12 horas anteriores e 12 futuras.
+- A tabela horaria publica nao faz parte do original de 25/10/2026. Graficos e exportacoes existentes continuam disponiveis.
+
+A cobertura automatizada inclui normalizacao, fuso, falhas parciais, concorrencia de filtros e eventos com dados simulados; a homologacao com autenticacao e dados reais exige ambiente proprio.
+
+## Regra: Conversao de data Firebase
 
 Arquivo: `src/EstacaoClimatica.Application/Utilities/FirebaseDate.cs`
 

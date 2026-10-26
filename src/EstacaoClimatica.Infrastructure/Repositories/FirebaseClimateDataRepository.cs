@@ -2,6 +2,7 @@ using EstacaoClimatica.Application.Abstractions;
 using EstacaoClimatica.Application.Configuration;
 using EstacaoClimatica.Application.Services;
 using System.Globalization;
+using EstacaoClimatica.Application.Utilities;
 using System.Text.Json;
 
 namespace EstacaoClimatica.Infrastructure.Repositories;
@@ -52,10 +53,20 @@ public sealed class RepositorioDadosClimaticosFirebase : IRepositorioDadosClimat
         var datasClimaticas = datasMes.Concat(datasJanela).Distinct(StringComparer.Ordinal).ToArray();
 
         // Solar permanece completo: o gráfico histórico usa 365 dias e buscar dia a dia seria mais caro que o ramo em cache.
-        var tarefaQuarto = ObterCaminhoComUltimaDataAsync(caminhos.Room, datasClimaticas, tokenCancelamento);
-        var tarefaSolar = _firebase.ObterCaminhoAsync(caminhos.Solar, tokenCancelamento);
-        var tarefaAquario = ObterCaminhoComUltimaDataAsync(caminhos.Aquarium, datasJanela, tokenCancelamento);
-        var tarefaSala = ObterCaminhoComUltimaDataAsync(caminhos.LivingRoom, datasClimaticas, tokenCancelamento);
+        var falhas = new System.Collections.Concurrent.ConcurrentBag<string>();
+        async Task<JsonElement?> ConsultarRamo(string nome, Func<Task<JsonElement?>> consultar)
+        {
+            try { return await consultar(); }
+            catch (Exception erro) when (!tokenCancelamento.IsCancellationRequested && erro is HttpRequestException or JsonException or TaskCanceledException)
+            {
+                falhas.Add(nome);
+                return null;
+            }
+        }
+        var tarefaQuarto = ConsultarRamo("quarto", () => ObterCaminhoComUltimaDataAsync(caminhos.Room, datasClimaticas, tokenCancelamento, [CamposFirebase.Quarto.Temperatura, CamposFirebase.Quarto.Umidade]));
+        var tarefaSolar = ConsultarRamo("solar", () => _firebase.ObterCaminhoAsync(caminhos.Solar, tokenCancelamento));
+        var tarefaAquario = ConsultarRamo("aquario", () => ObterCaminhoComUltimaDataAsync(caminhos.Aquarium, datasJanela, tokenCancelamento, [CamposFirebase.Aquario.Temperatura]));
+        var tarefaSala = ConsultarRamo("sala", () => ObterCaminhoComUltimaDataAsync(caminhos.LivingRoom, datasClimaticas, tokenCancelamento, [CamposFirebase.Sala.Temperatura, CamposFirebase.Sala.Umidade]));
 
         await Task.WhenAll(tarefaQuarto, tarefaSolar, tarefaAquario, tarefaSala);
 
@@ -63,23 +74,23 @@ public sealed class RepositorioDadosClimaticosFirebase : IRepositorioDadosClimat
             tarefaQuarto.Result,
             tarefaSolar.Result,
             tarefaAquario.Result,
-            tarefaSala.Result);
+            tarefaSala.Result) { RamosComFalha = falhas.Order().ToArray() };
     }
 
-    private async Task<JsonElement?> ObterCaminhoComUltimaDataAsync(string caminho, IReadOnlyList<string> datas, CancellationToken tokenCancelamento)
+    private async Task<JsonElement?> ObterCaminhoComUltimaDataAsync(string caminho, IReadOnlyList<string> datas, CancellationToken tokenCancelamento, string[] camposAtuais)
     {
         var chaves = await _firebase.ObterCaminhoComQueryAsync(caminho, "shallow=true", tokenCancelamento);
-        var datasDisponiveis = chaves is { ValueKind: JsonValueKind.Object } valor
-            ? valor.EnumerateObject().Select(item => item.Name).ToHashSet(StringComparer.Ordinal)
+        var datasDisponiveis = chaves is { ValueKind: JsonValueKind.Object } chavesObjeto
+            ? chavesObjeto.EnumerateObject().Select(item => item.Name).ToHashSet(StringComparer.Ordinal)
             : null;
         var ultimaData = datasDisponiveis?
             .Select(nome => new { Nome = nome, Data = ConverterDataFirebase(nome) })
-            .Where(item => item.Data is not null && item.Data.Value.Date <= DateTime.Today)
+            .Where(item => item.Data is not null && item.Data.Value.Date <= RelogioClimatico.Hoje)
             .OrderByDescending(item => item.Data)
             .Select(item => item.Nome)
             .FirstOrDefault();
         // O dia atual pode surgir enquanto o shallow ainda está no cache de 30 segundos.
-        var hoje = FormatarDataFirebase(DateTime.Today);
+        var hoje = FormatarDataFirebase(RelogioClimatico.Hoje);
         var datasExistentes = datasDisponiveis is null
             ? datas
             : datas.Where(data => datasDisponiveis.Contains(data) || data == hoje).ToArray();
@@ -87,7 +98,30 @@ public sealed class RepositorioDadosClimaticosFirebase : IRepositorioDadosClimat
             ? datasExistentes
             : datasExistentes.Concat(new[] { ultimaData }).Distinct(StringComparer.Ordinal).ToArray();
 
-        return await ObterCaminhoPorDatasAsync(caminho, datasComUltima, tokenCancelamento);
+        var resultado = await ObterCaminhoPorDatasAsync(caminho, datasComUltima, tokenCancelamento);
+        if (datasDisponiveis is null) return resultado;
+        var dados = resultado?.EnumerateObject().ToDictionary(item => item.Name, item => item.Value.Clone()) ?? new();
+        var pendentes = camposAtuais.ToHashSet(StringComparer.Ordinal);
+        var agora = RelogioClimatico.Agora;
+        foreach (var data in datasDisponiveis.Where(data => ConverterDataFirebase(data) is { } dia && dia <= agora.Date)
+                     .OrderByDescending(ConverterDataFirebase))
+        {
+            tokenCancelamento.ThrowIfCancellationRequested();
+            if (!dados.TryGetValue(data, out var valor))
+            {
+                var carregado = await _firebase.ObterCaminhoAsync($"{caminho}/{data}", tokenCancelamento);
+                if (carregado is null) continue;
+                dados[data] = valor = carregado.Value;
+            }
+            var diaDados = ParaElementoJson(new Dictionary<string, JsonElement> { [data] = valor });
+            foreach (var registro in LeitorRegistrosFirebase.EnumerarRegistros(diaDados))
+            {
+                if (!LeitorRegistrosFirebase.LeituraNoPassadoValido(data, registro.Horario, agora)) continue;
+                pendentes.RemoveWhere(campo => NormalizadorMedicoesAquario.NormalizarValorMedicao(campo, LeitorNumerosJson.ObterNumero(registro.Item, campo)) is not null);
+            }
+            if (pendentes.Count == 0) break;
+        }
+        return dados.Count == 0 ? null : ParaElementoJson(dados);
     }
 
     private async Task<JsonElement?> ObterCaminhoPorDatasAsync(string caminho, IReadOnlyList<string> datas, CancellationToken tokenCancelamento)

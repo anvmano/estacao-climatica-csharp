@@ -412,15 +412,13 @@ function renderizarGraficoComparativo({ canvasId: idTelaGrafico, containerId: id
     const cartao = document.getElementById(idRecipiente);
     if (!canvas || !cartao) return;
 
-    if (graficosInstancias[idTelaGrafico]) {
-        window.SincronizadorGraficos?.desregistrar(graficosInstancias[idTelaGrafico]);
-        graficosInstancias[idTelaGrafico].destroy();
-    }
     limparMensagemGrafico(cartao);
     garantirCartaoComZoom(cartao);
 
     const seriesValidas = seriesClimaticas.filter(serie => serie.pontos.some(ponto => Number.isFinite(ponto.value)));
     if (!seriesValidas.length) {
+        window.SincronizadorGraficos?.desregistrar(graficosInstancias[idTelaGrafico]);
+        graficosInstancias[idTelaGrafico]?.destroy();
         delete graficosInstancias[idTelaGrafico];
         renderizarMensagemGrafico(cartao, mensagemVazia);
         return;
@@ -429,7 +427,7 @@ function renderizarGraficoComparativo({ canvasId: idTelaGrafico, containerId: id
     const chaves = [...new Set(seriesValidas.flatMap(serie => serie.pontos.map(obterChavePontoComparativo)))];
     const rotulosPorChave = new Map(seriesValidas.flatMap(serie => serie.pontos.map(ponto => [obterChavePontoComparativo(ponto), ponto.label])));
     const rotulos = chaves.map(chave => rotulosPorChave.get(chave) || chave);
-    const graficoLocal = new Chart(canvas.getContext('2d'), {
+    const graficoLocal = criarOuAtualizarGrafico(canvas.getContext('2d'), {
         type: 'line',
         data: {
             labels: rotulos,

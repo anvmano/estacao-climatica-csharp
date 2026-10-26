@@ -1,4 +1,5 @@
 using System.Globalization;
+using EstacaoClimatica.Application.Utilities;
 using EstacaoClimatica.Domain;
 
 namespace EstacaoClimatica.Application.Services;
@@ -93,7 +94,7 @@ public sealed class ServicoAnalisesAmbientais
     {
         if (!DateTime.TryParse(atualizadoEm, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var inicio))
         {
-            inicio = DateTime.Now;
+            inicio = RelogioClimatico.Agora;
         }
 
         var limite = inicio.AddHours(quantidadeHoras);

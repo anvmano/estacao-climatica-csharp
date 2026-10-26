@@ -110,6 +110,7 @@
     }
 
     function mostrarPublico(usuario) {
+        window.pararPainelInterno?.();
         const estavaInterno = !elementos.privateApp?.hasAttribute('hidden');
         if (typeof dashboardAtual !== 'undefined') dashboardAtual = null;
         if (typeof graficosInstancias !== 'undefined') {
@@ -218,7 +219,7 @@
             if (cidades.length === 1) {
                 repetirConsultaAtual = () => requisitarClimaCidade(cidades[0]);
                 const dados = await requisitarClimaCidade(cidades[0]);
-                concluirBusca(dados, idBusca);
+                await concluirBusca(dados, idBusca);
                 return;
             }
 
@@ -239,7 +240,7 @@
         try {
             repetirConsultaAtual = () => requisitarClimaCidade(cidade);
             const dados = await requisitarClimaCidade(cidade);
-            concluirBusca(dados, idBusca);
+            await concluirBusca(dados, idBusca);
         } catch (erro) {
             tratarErroBusca(erro, idBusca, true);
         } finally {
@@ -260,7 +261,7 @@
             const url = `/api/public-weather/location?latitude=${encodeURIComponent(posicao.coords.latitude)}&longitude=${encodeURIComponent(posicao.coords.longitude)}&precisao=${encodeURIComponent(posicao.coords.accuracy)}`;
             repetirConsultaAtual = () => requisitarJson(url);
             const dados = await requisitarJson(url);
-            concluirBusca(dados, idBusca);
+            await concluirBusca(dados, idBusca);
         } catch (erro) {
             tratarErroBusca(erro, idBusca);
         } finally {
@@ -292,7 +293,7 @@
         try {
             repetirConsultaAtual = () => requisitarJson(url);
             const dados = await requisitarJson(url);
-            concluirBusca(dados, idBusca);
+            await concluirBusca(dados, idBusca);
         } catch (erro) {
             tratarErroBusca(erro, idBusca, true);
         } finally {
@@ -326,9 +327,10 @@
         return dados;
     }
 
-    function concluirBusca(dados, idBusca) {
+    async function concluirBusca(dados, idBusca) {
         if (idBusca !== sequenciaBusca) return false;
-        renderizarResultado(dados);
+        await renderizarResultado(dados);
+        if (idBusca !== sequenciaBusca) return false;
         preservarUltimaConsulta(dados);
         anunciarEstado(`Dados climáticos carregados para ${dados.origem?.rotulo || 'a localização'}.`);
         return true;
@@ -441,7 +443,10 @@
         return String(valor || '').trim().replace(/\s+/g, ' ');
     }
 
-    function renderizarResultado(dados) {
+    async function renderizarResultado(dados) {
+        const geracao = sequenciaBusca;
+        await window.RecursosClimaticos.carregarChart();
+        if (geracao !== sequenciaBusca || elementos.publicApp.hidden) return;
         limparGraficos();
         const atualizado = novaData(dados.atualizadoEm);
         const dataFirebase = atualizado ? `${preencherDigitos(atualizado.getDate())}-${preencherDigitos(atualizado.getMonth() + 1)}-${atualizado.getFullYear()}` : paraDataFirebase(new Date());
@@ -466,14 +471,14 @@
                 <section class="season-timeline public-season" id="publicSeasonTimeline">${renderizarEstacao(estacao)}</section>
                 <section class="moon-summary public-moon" id="publicMoonSummary">${renderizarLua(lua)}</section>
             </div>
-            ${montarInsightsPublicos(dados.insights)}
+            ${montarInsightsPublicos(dados.insights, dados.climaAtual)}
             <div class="charts-grid public-metric-charts" tabindex="0" aria-label="Gráficos climáticos; deslize horizontalmente para alternar no celular">
                 ${cartaoTelaGrafico('publicChartTemperature', 'Temperatura', 'Temperatura externa')}
                 ${cartaoTelaGrafico('publicChartFeelsLike', 'Sensação Térmica', 'Sensação térmica externa')}
                 ${cartaoTelaGrafico('publicChartHumidity', 'Umidade', 'Umidade externa')}
                 ${cartaoTelaGrafico('publicChartPressure', 'Pressão', 'Pressão externa')}
-                <div class="chart-card" id="public-rain-container"><span class="chart-label">Precipitação · 24h + previsão 12h</span><span class="chart-rain-status" id="publicRainStatus"></span><canvas id="publicChartRain" class="plot" role="img" aria-label="Precipitação pública em milímetros"></canvas></div>
-                ${cartaoTelaGrafico('publicChartRainProbability', 'Chance de chuva · 24h + previsão 12h', 'Chance de chuva pública em porcentagem')}
+                <div class="chart-card" id="public-rain-container"><span class="chart-label">Precipitação · 24h anteriores + próximas 12h</span><span id="publicRainStatus" hidden></span><canvas id="publicChartRain" class="plot" role="img" aria-label="Precipitação pública em milímetros"></canvas></div>
+                ${cartaoTelaGrafico('publicChartRainProbability', 'Chance de chuva · 24h anteriores + próximas 12h', 'Chance de chuva pública em porcentagem')}
             </div>
             ${montarSecaoPrevisaoQuinzeDias(dados.previsaoQuinzeDias)}
             <div class="chart-card chart-card--wide" id="public-solar-container"><span class="chart-label">Ciclo Solar do Dia</span><span class="chart-card__meta-chip" id="publicSolarDuration" hidden></span><canvas id="publicChartSolar" class="plot plot--solar-day" role="img" aria-label="Ciclo solar público"></canvas></div>`;
@@ -531,7 +536,7 @@
         }
     }
 
-    function restaurarUltimaConsulta() {
+    async function restaurarUltimaConsulta() {
         try {
             const chave = window.AppConfig?.publicData?.sessionKey || 'climatePublicLastQueryV1';
             const salvo = JSON.parse(sessionStorage.getItem(chave) || 'null');
@@ -541,7 +546,7 @@
                 sessionStorage.removeItem(chave);
                 return;
             }
-            renderizarResultado(salvo.dados);
+            await renderizarResultado(salvo.dados);
             if (elementos.statusBusca) {
                 elementos.statusBusca.setAttribute('role', 'status');
                 elementos.statusBusca.textContent = 'Última consulta desta sessão restaurada.';
@@ -551,12 +556,13 @@
         }
     }
 
-    function montarInsightsPublicos(analisesAmbientais) {
+    function montarInsightsPublicos(analisesAmbientais, climaAtual) {
         const ventilacao = analisesAmbientais?.ventilacao || criarResultadoIndisponivel('Sem dados externos suficientes para recomendar ventilação.');
         const chuva = analisesAmbientais?.chuva || criarResultadoIndisponivel('Previsão de chuva indisponível para as próximas 6h.');
         const indiceUv = analisesAmbientais?.indiceUv || criarResultadoIndisponivel('Índice UV indisponível para esta localização.');
         const riscoMofo = analisesAmbientais?.riscoMofo || criarResultadoIndisponivel('Sem dados suficientes para estimar o risco de mofo.');
         const chuvaDisponivel = chuva.classe !== 'indisponivel';
+        const chuvaAgora = window.ClimaChuva.analisarAgora(climaAtual || {});
         const uvDisponivel = indiceUv.classe !== 'indisponivel';
         const detalheUv = uvDisponivel && Number.isFinite(indiceUv.maximo)
             ? `Máxima do dia: ${indiceUv.maximo.toFixed(1)}${indiceUv.usaMaximoComoFallback ? ' · usando máxima diária' : ''}`
@@ -565,8 +571,8 @@
         return `<section class="environment-insights" aria-label="Condições e recomendações da localização">
             <div class="environment-insights__grid" tabindex="0" aria-label="Recomendações ambientais; deslize horizontalmente para alternar no celular">
                 ${cartaoAnalise('Ventilação', ventilacao.rotulo, 'Agora', ventilacao, 'Baseado em clima, chuva e AQI externos')}
-                ${cartaoAnalise('Chuva · próximas 6h', chuvaDisponivel ? `${Math.round(chuva.probabilidade)}%` : '--', chuva.rotulo, chuva,
-                    chuvaDisponivel ? `${decimal(chuva.acumulado)} mm acumulados · pico ${decimal(chuva.intensidadeMaxima)} mm/h` : 'Sem previsão horária')}
+                ${cartaoAnalise('Chuva · próximas 6h', chuvaAgora.disponivel ? chuvaAgora.rotulo : '--', chuva.rotulo, chuva,
+                    chuvaDisponivel ? `Maior chance ${Math.round(chuva.probabilidade)}% · ${decimal(chuva.acumulado)} mm acumulados · pico ${decimal(chuva.intensidadeMaxima)} mm/h` : 'Sem previsão horária')}
                 ${cartaoAnalise('Índice UV', uvDisponivel ? Number(indiceUv.valor).toFixed(1) : '--', indiceUv.rotulo, indiceUv, detalheUv)}
                 ${cartaoAnalise('Ponto de orvalho', Number.isFinite(riscoMofo.pontoOrvalho) ? `${riscoMofo.pontoOrvalho.toFixed(1)}°C` : '--', riscoMofo.rotulo, riscoMofo,
                     'Risco estimado de condensação e mofo')}
@@ -588,17 +594,17 @@
     }
 
     function decimal(valor) {
-        return Number.isFinite(Number(valor)) ? Number(valor).toFixed(1) : '--';
+        return numeroValido(valor) !== null ? Number(valor).toFixed(1) : '--';
     }
 
     function cartao(titulo, valor, unidade, detalhe) {
-        const texto = numeroValido(valor) !== null ? `${Number(valor).toFixed(unidade ? 2 : 0)}${unidade}` : '--';
+        const texto = numeroValido(valor) !== null ? `<span class="public-card__number">${Number(valor).toFixed(2)}</span><span class="public-card__unit">${unidade}</span>` : '--';
         return `<article class="stats-card public-card"><span class="stats-card__label">${titulo}</span><strong class="stats-card__value">${texto}</strong><span class="public-card__meta">${escapar(detalhe)}</span></article>`;
     }
 
     function cartaoAqi(valor, categoria) {
         const texto = numeroValido(valor) !== null ? Math.round(Number(valor)) : '--';
-        return `<article class="stats-card public-card public-card--aqi"><span class="stats-card__label">AQI externo</span><strong class="stats-card__value">${texto}</strong><span class="stats-card__trend">${escapar(categoria)}</span></article>`;
+        return `<article class="stats-card public-card public-card--aqi"><span class="stats-card__label">AQI externo</span><strong class="stats-card__value">${texto}</strong><span class="stats-card__trend stats-card__trend--stable">${escapar(categoria)}</span></article>`;
     }
 
     function cartaoTelaGrafico(id, titulo, aria) {
@@ -653,7 +659,7 @@
             botao.textContent = 'Consultando...';
             try {
                 const dados = await repetirConsultaAtual();
-                renderizarResultado(dados);
+                await renderizarResultado(dados);
                 preservarUltimaConsulta(dados);
                 anunciarEstado('Nova consulta concluída.');
             } catch (erro) {
@@ -668,7 +674,7 @@
         const mapa = document.getElementById('publicForecastMap');
         if (!mapa) return;
 
-        mapa.innerHTML = `<div class="public-forecast-map__labels" aria-hidden="true"><span>Data</span><span>Máx.</span><span>Chuva</span><span>UV</span></div>
+        mapa.innerHTML = `<div class="public-forecast-map__labels" aria-hidden="true"><span>Dia</span><span>Máx.</span><span>Chuva</span><span>UV</span></div>
             <div class="public-forecast-map__days">${dias.map((dia, indice) => {
                 const maxima = numeroValido(dia.temperaturaMaxima);
                 const chuva = numeroValido(dia.probabilidadeChuva);
@@ -707,16 +713,12 @@
             label: rotulo,
             data: dados,
             borderColor: cor,
-            backgroundColor: corComTransparencia(cor, 0.1),
+            backgroundColor: corComTransparencia(cor, preencher ? 0.1 : 0.08),
             fill: preencher ? '-1' : false,
             tension: 0.3,
             pointRadius: 3,
             pointHitRadius: 18,
-            spanGaps: false,
-            segment: {
-                borderColor: contexto => contexto.p0DataIndex >= 6 ? corComTransparencia(cor, 0.5) : cor,
-                borderDash: contexto => contexto.p0DataIndex >= 6 ? [5, 4] : undefined
-            }
+            spanGaps: false
         };
     }
 
@@ -730,16 +732,12 @@
                 datasets: [
                     {
                         label: 'Volume', data: dias.map(dia => dia.precipitacao), yAxisID: 'yMilimetros',
-                        backgroundColor: dias.map((_, indice) => corComTransparencia(cores.blue, indice >= 7 ? 0.28 : 0.56)),
+                        backgroundColor: corComTransparencia(cores.blue, 0.56),
                         borderColor: cores.blue, borderWidth: 1, borderRadius: 3, order: 2
                     },
                     {
                         type: 'line', label: 'Probabilidade', data: dias.map(dia => dia.probabilidadeChuva), yAxisID: 'yProbabilidade',
-                        borderColor: cores.purple, backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, pointHitRadius: 18, order: 1,
-                        segment: {
-                            borderColor: contexto => contexto.p0DataIndex >= 6 ? corComTransparencia(cores.purple, 0.5) : cores.purple,
-                            borderDash: contexto => contexto.p0DataIndex >= 6 ? [5, 4] : undefined
-                        }
+                        borderColor: cores.purple, backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, pointHitRadius: 18, order: 1
                     }
                 ]
             },
@@ -758,7 +756,7 @@
                 labels: dias.map(dia => formatarDataCurta(dia.data)),
                 datasets: [{
                     label: 'UV máximo', data: dias.map(dia => dia.indiceUvMaximo),
-                    backgroundColor: dias.map((_, indice) => corComTransparencia(cores.amber, indice >= 7 ? 0.33 : 0.66)),
+                    backgroundColor: corComTransparencia(cores.amber, 0.66),
                     borderColor: cores.amber, borderWidth: 1, borderRadius: 3
                 }]
             },
@@ -1053,8 +1051,8 @@
         const grafico = new Chart(canvas, {
             type: 'line',
             data: { datasets: [
-                { label: 'Luz do dia', data: pontos, borderColor: '#facc15', backgroundColor: 'rgba(250,204,21,.22)', fill: true, tension: .42, pointRadius: 0, pointHitRadius: 18 },
-                { type: 'scatter', label: 'Eventos solares', data: pontos.slice(1, 6), borderColor: '#f8fafc', backgroundColor: ['#fde68a', '#fb923c', '#facc15', '#f87171', '#818cf8'], pointBorderColor: '#0b1120', pointBorderWidth: 2, ...window.obterOpcoesPontosEventosSolares() }
+                { label: 'Luz do dia', data: pontos, borderColor: '#facc15', backgroundColor: 'rgba(250,204,21,.22)', fill: true, tension: .42, pointRadius: 0, pointHitRadius: 0 },
+                { type: 'scatter', label: 'Eventos solares', data: pontos.slice(1, 6), backgroundColor: ['#fde68a', '#fb923c', '#facc15', '#f87171', '#818cf8'], pointBorderColor: '#0b1120', pointBorderWidth: 2, ...window.obterOpcoesPontosEventosSolares() }
             ] },
             options: obterOpcoesSolarDia(),
             plugins: [pluginFundoDiaSolar]
@@ -1086,7 +1084,7 @@
     function atualizarAqiPublico(aqui, local, atualizadoEm = null) {
         const indicador = document.getElementById('aqiIndicator');
         const popover = document.getElementById('aqiPopover');
-        const valor = Number(aqui?.valor);
+        const valor = numeroValido(aqui?.valor);
         const estado = classificarAqi(valor);
         indicador.className = `aqi-indicator aqi-indicator--${estado.chave}`;
         indicador.querySelector('.aqi-indicator__value').textContent = Number.isFinite(valor) ? Math.round(valor) : '--';
@@ -1107,7 +1105,7 @@
     }
 
     function classificarAqi(valor) {
-        const numero = Number(valor);
+        const numero = numeroValido(valor);
         if (!Number.isFinite(numero)) return { chave: 'unknown', nome: 'Indisponível', impacto: '' };
         if (numero <= 50) return { chave: 'good', nome: 'Boa', impacto: 'Ar satisfatório, risco mínimo.' };
         if (numero <= 100) return { chave: 'moderate', nome: 'Moderado', impacto: 'Aceitável, mas pode haver risco moderado para grupos sensíveis.' };
@@ -1124,7 +1122,7 @@
 
     function renderizarLua(estado) {
         if (!estado) return '';
-        return `<div class="moon-summary__scene moon-summary__scene--${estado.fase.chave}" style="--moon-shadow: ${estado.sombra}%"><span class="moon-summary__orb" aria-hidden="true"></span></div><div class="moon-summary__content"><span>${estado.fase.nome}</span><strong>${estado.iluminacao}% iluminada</strong></div><dl class="moon-summary__details"><div><dt>Idade</dt><dd>${estado.idade.toFixed(1)} dias</dd></div><div><dt>Próx. cheia</dt><dd>${formatarDataCompleta(estado.proximaCheia)}</dd></div><div><dt>Próx. nova</dt><dd>${formatarDataCompleta(estado.proximaNova)}</dd></div></dl>`;
+        return `<div class="moon-summary__scene moon-summary__scene--${estado.fase.chave}" style="--moon-shadow: ${estado.sombra}%"><span class="moon-summary__orb" aria-hidden="true"></span></div><div class="moon-summary__content"><span>${estado.fase.nome}</span><strong>${estado.iluminacao}% iluminada</strong></div><dl class="moon-summary__details"><div><dt>Idade</dt><dd>${estado.idade.toFixed(1)} dias</dd></div><div><dt>Próxima cheia</dt><dd>${formatarDataCompleta(estado.proximaCheia)}</dd></div><div><dt>Próxima nova</dt><dd>${formatarDataCompleta(estado.proximaNova)}</dd></div></dl>`;
     }
 
     function limparGraficos() { Object.keys(graficos).forEach(chave => { window.SincronizadorGraficos?.desregistrar(graficos[chave]); graficos[chave]?.destroy?.(); delete graficos[chave]; }); }

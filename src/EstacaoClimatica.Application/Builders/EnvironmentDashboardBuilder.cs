@@ -12,7 +12,7 @@ internal sealed class MontadorDashboardAmbiente
     private readonly Func<DateTime> _obterAgora;
 
     public MontadorDashboardAmbiente(CoresAplicacao cores)
-        : this(cores, () => DateTime.Now)
+        : this(cores, () => RelogioClimatico.Agora)
     {
     }
 

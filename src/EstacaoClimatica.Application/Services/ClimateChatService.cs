@@ -18,7 +18,7 @@ public sealed partial class ServicoAssistenteClimatico : IServicoAssistenteClima
     private readonly Func<DateTime> _obterAgora;
 
     public ServicoAssistenteClimatico(IRepositorioDadosClimaticos repositorio, IClienteGeracaoTexto clienteGeracaoTexto, OpcoesIa opcoesIa)
-        : this(repositorio, clienteGeracaoTexto, opcoesIa, () => DateTime.Now)
+        : this(repositorio, clienteGeracaoTexto, opcoesIa, () => RelogioClimatico.Agora)
     {
     }
 
@@ -507,7 +507,7 @@ Pergunta: {{pergunta}}
             .Select(registro =>
             {
                 var valor = LeitorNumerosJson.ObterNumero(registro.Item, metrica.Key);
-                valor = metrica.EnvironmentKey == "aquario" ? NormalizadorMedicoesAquario.NormalizarValorMedicao(metrica.Key, valor) : valor;
+                valor = NormalizadorMedicoesAquario.NormalizarValorMedicao(metrica.Key, valor);
                 return valor is null ? null : new AmostraMetrica(data, FormatarData(data), FormatarHoraRegistro(registro.Horario), valor.Value);
             })
             .Where(amostra => amostra is not null)
@@ -679,7 +679,7 @@ Pergunta: {{pergunta}}
             .SelectMany(dia => dia.Samples.Select(amostra => (dia, amostra)))
             .GroupBy(item =>
             {
-                var data = DataFirebase.InterpretarDataFirebase(item.dia.Date) ?? DateTime.Today;
+                var data = DataFirebase.InterpretarDataFirebase(item.dia.Date) ?? RelogioClimatico.Hoje;
                 return $"{(int)data.DayOfWeek}|{item.amostra.TimeLabel[..2]}";
             })
             .Select(grupo =>
@@ -687,7 +687,7 @@ Pergunta: {{pergunta}}
                 var valores = grupo.Select(item => item.amostra.Value).ToArray();
                 var estatisticas = CalcularEstatisticas(valores);
                 var primeiro = grupo.First();
-                var data = DataFirebase.InterpretarDataFirebase(primeiro.dia.Date) ?? DateTime.Today;
+                var data = DataFirebase.InterpretarDataFirebase(primeiro.dia.Date) ?? RelogioClimatico.Hoje;
                 return new ResultadoAnaliseMapaCalor("analise_heatmap_semanal", null, rotulosSemana[(int)data.DayOfWeek], $"{primeiro.amostra.TimeLabel[..2]}:00", Arredondar(estatisticas.Avg), Arredondar(estatisticas.Min), Arredondar(estatisticas.Max), valores.Length);
             })
             .ToArray();
@@ -1301,7 +1301,7 @@ Resultado calculado:
     private IEnumerable<string> MontarUltimosDias(int dias, string? dataSelecionada = null)
     {
         var clamped = LimitarDias(dias);
-        var dataFinal = DataFirebase.InterpretarDataFirebase(dataSelecionada ?? DataFirebase.Normalizar(null)) ?? DateTime.Today;
+        var dataFinal = DataFirebase.InterpretarDataFirebase(dataSelecionada ?? DataFirebase.Normalizar(null)) ?? RelogioClimatico.Hoje;
         return Enumerable.Range(0, clamped)
             .Select(indice => dataFinal.AddDays(-(clamped - 1 - indice)))
             .Select(FormatarDataFirebase);
@@ -1309,7 +1309,7 @@ Resultado calculado:
 
     private IEnumerable<string> MontarIntervaloDatas(string inicio, string fim)
     {
-        var dataInicial = DataFirebase.InterpretarDataFirebase(inicio) ?? DateTime.Today;
+        var dataInicial = DataFirebase.InterpretarDataFirebase(inicio) ?? RelogioClimatico.Hoje;
         var dataFinal = DataFirebase.InterpretarDataFirebase(fim) ?? dataInicial;
         var direcao = dataInicial <= dataFinal ? 1 : -1;
         var cursor = dataInicial;
@@ -1327,7 +1327,7 @@ Resultado calculado:
 
     private IEnumerable<string> MontarDatasMes(string dataSelecionada)
     {
-        var data = DataFirebase.InterpretarDataFirebase(dataSelecionada) ?? DateTime.Today;
+        var data = DataFirebase.InterpretarDataFirebase(dataSelecionada) ?? RelogioClimatico.Hoje;
         var diasNoMes = DateTime.DaysInMonth(data.Year, data.Month);
         return Enumerable.Range(1, diasNoMes)
             .Select(dia => FormatarDataFirebase(new DateTime(data.Year, data.Month, dia)));
@@ -1474,7 +1474,7 @@ Resultado calculado:
                 : "";
         }
 
-        var selecionado = DataFirebase.InterpretarDataFirebase(dataSelecionada) ?? DateTime.Today;
+        var selecionado = DataFirebase.InterpretarDataFirebase(dataSelecionada) ?? RelogioClimatico.Hoje;
         var ano = ExtrairAnoPergunta(perguntaNormalizada) ?? selecionado.Year;
         return FormatarDataFirebase(new DateTime(ano, indiceMes.Value + 1, 1));
     }
@@ -1938,7 +1938,7 @@ Resultado calculado:
 
         if (periodo.Type == "selected_month")
         {
-            var data = DataFirebase.InterpretarDataFirebase(periodo.Dates.FirstOrDefault() ?? datas.FirstOrDefault() ?? DataFirebase.Normalizar(null)) ?? DateTime.Today;
+            var data = DataFirebase.InterpretarDataFirebase(periodo.Dates.FirstOrDefault() ?? datas.FirstOrDefault() ?? DataFirebase.Normalizar(null)) ?? RelogioClimatico.Hoje;
             return $"{data.Month:00}/{data.Year}";
         }
 

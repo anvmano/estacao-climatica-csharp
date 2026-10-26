@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="style.css?v=20260922-uiux2" rel="stylesheet" />
+    <link href="style.css?v=20261025-paridade" rel="stylesheet" />
     <link rel="preload" href="styles/chat.css?v=20260922-uiux2" as="style" onload="this.onload=null;this.rel='stylesheet'" />
     <noscript><link href="styles/chat.css?v=20260922-uiux2" rel="stylesheet" /></noscript>
 </head>
@@ -88,23 +88,13 @@
         <div class="public-shell">
             <div class="public-hero">
                 <div class="public-hero__content">
-                    <span class="public-eyebrow">Modo público</span>
                     <h1 id="publicPageTitle">Clima por localização</h1>
-                    <p>Consulte por CEP, nome da cidade ou use a localização do navegador para ver clima atual, chuva, índice UV, qualidade do ar e recomendações ambientais.</p>
-                    <div class="public-feature-list" aria-label="Dados exibidos no modo público">
-                        <span>Temperatura</span>
-                        <span>Sensação</span>
-                        <span>Umidade</span>
-                        <span>AQI externo</span>
-                        <span>Chuva e UV</span>
-                    </div>
-                </div>
-                <div class="public-hero__panel">
                     <div class="public-user-status" id="publicUserStatus">
                         <button type="button" id="publicLoginButton">Entrar com Google</button>
                     </div>
+                </div>
+                <div class="public-hero__panel">
                     <div class="public-controls" aria-label="Consulta pública de clima">
-                        <button class="toolbar-button public-location-button" type="button" id="publicLocationButton">Usar localização</button>
                         <div class="public-search-mode" role="group" aria-label="Forma de busca">
                             <button class="active" id="publicSearchModeCep" type="button" aria-pressed="true">CEP</button>
                             <button id="publicSearchModeCity" type="button" aria-pressed="false">Cidade</button>
@@ -114,6 +104,7 @@
                             <input id="publicSearchInput" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000" />
                             <button class="toolbar-button" id="publicSearchButton" type="submit">Buscar</button>
                         </form>
+                        <button class="toolbar-button public-location-button" type="button" id="publicLocationButton">Usar localização</button>
                         <div class="public-city-results" id="publicCityResults" aria-label="Cidades encontradas" hidden></div>
                     </div>
                     <p class="public-search-status" id="publicSearchStatus" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -124,6 +115,7 @@
     </main>
 
     <div class="app-body" id="privateApp" hidden>
+        <p id="sensorConnectionAlert" class="state-message error-message" role="status" hidden></p>
         <h1 class="visually-hidden">Estação Climática</h1>
         <div class="tab-toolbar">
             <nav class="tab-nav" role="tablist" aria-label="Ambientes monitorados">
@@ -319,24 +311,22 @@
         </section>
     </aside>
 
-    <script src="vendor/chart.umd.min.js"></script>
-    <script src="scripts/utils.js?v=20260811-time-rounding"></script>
-    <script src="scripts/sincronizacao-graficos.js?v=20260922-uiux2"></script>
-    <script src="scripts/config.js?v=20260816-parity-final"></script>
-    <script src="scripts/season.js?v=20260623-station"></script>
-    <script src="scripts/moon.js?v=20260623-station"></script>
-    <script src="scripts/ui.js?v=20260922-uiux2"></script>
-    <script src="scripts/chuva.js?v=20260922-uiux2"></script>
-    <script src="scripts/pdf-report.js?v=20260816-parity"></script>
-    <script src="scripts/views/dashboard-view.js?v=20260816-parity"></script>
-    <script src="scripts/views/station-view.js?v=20260816-parity-final"></script>
-    <script src="scripts/solar.js?v=20260922-uiux2"></script>
-    <script src="scripts/heatmaps.js?v=20260613-highlight-safe-render"></script>
-    <script src="scripts/zoom.js?v=20260603-modular7"></script>
-    <script src="scripts/chat.js?v=20260614-chat-memory-scroll"></script>
-    <script src="scripts/auth.js?v=20260811-auth-regression"></script>
-    <script src="scripts/public-weather.js?v=20260922-uiux2"></script>
-    <script src="app.js?v=20260922-uiux2"></script>
+    <script defer src="scripts/runtime-loader.js?v=20261025-paridade"></script>
+    <script defer src="scripts/utils.js?v=20261025-paridade"></script>
+    <script defer src="scripts/sincronizacao-graficos.js?v=20260922-uiux2"></script>
+    <script defer src="scripts/config.js?v=20261025-paridade"></script>
+    <script defer src="scripts/season.js?v=20260623-station"></script>
+    <script defer src="scripts/moon.js?v=20260623-station"></script>
+    <script defer src="scripts/ui.js?v=20261025-paridade"></script>
+    <script defer src="scripts/chuva.js?v=20261025-paridade"></script>
+    <script defer src="scripts/views/dashboard-view.js?v=20261025-paridade"></script>
+    <script defer src="scripts/views/station-view.js?v=20261025-paridade"></script>
+    <script defer src="scripts/solar.js?v=20261025-paridade"></script>
+    <script defer src="scripts/heatmaps.js?v=20260613-highlight-safe-render"></script>
+    <script defer src="scripts/zoom.js?v=20261025-paridade"></script>
+    <script defer src="scripts/auth.js?v=20261025-paridade"></script>
+    <script defer src="scripts/public-weather.js?v=20261025-paridade"></script>
+    <script defer src="app.js?v=20261025-paridade"></script>
 </body>
 </html>
 

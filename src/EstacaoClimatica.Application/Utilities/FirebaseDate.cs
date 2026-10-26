@@ -9,7 +9,7 @@ internal static class DataFirebase
         // O Firebase usa dd-MM-yyyy; o frontend já converte o input HTML antes de chamar a API.
         return !string.IsNullOrWhiteSpace(data)
             ? data
-            : DateTime.Today.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture);
+            : RelogioClimatico.Hoje.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture);
     }
 
     public static DateTime? InterpretarDataFirebase(string textoString)

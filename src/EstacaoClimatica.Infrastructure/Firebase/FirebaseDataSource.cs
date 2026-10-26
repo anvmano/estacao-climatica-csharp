@@ -8,6 +8,18 @@ namespace EstacaoClimatica.Infrastructure.Firebase;
 public sealed class FonteDadosFirebase : IFonteDadosFirebase
 {
     private static readonly ConcurrentDictionary<string, EntradaCache> EntradasCache = new();
+    private static readonly SemaphoreSlim LimiteConsultas = new(4, 4);
+    private static readonly SemaphoreSlim[] TravasUrl = Enumerable.Range(0, 64).Select(_ => new SemaphoreSlim(1, 1)).ToArray();
+    private static long _geracaoCache;
+
+    public static void InvalidarRamo(string urlBase, string caminho)
+    {
+        Interlocked.Increment(ref _geracaoCache);
+        var prefixo = $"{urlBase.TrimEnd('/')}/{caminho.Trim('/').Replace(" ", "%20", StringComparison.Ordinal)}";
+        foreach (var chave in EntradasCache.Keys)
+            if (chave.StartsWith(prefixo + "/", StringComparison.Ordinal) || chave.StartsWith(prefixo + ".json", StringComparison.Ordinal))
+                EntradasCache.TryRemove(chave, out _);
+    }
     private readonly HttpClient _clienteHttp;
     private readonly OpcoesFirebase _opcoes;
 
@@ -40,9 +52,23 @@ public sealed class FonteDadosFirebase : IFonteDadosFirebase
             return valorCache;
         }
 
-        var valor = await ObterComRepeticaoAsync(url, tokenCancelamento);
-        GuardarNoCache(url, valor);
-        return valor;
+        // Travas fixas evitam um dicionario ilimitado de consultas e compartilham o cache entre pedidos simultaneos.
+        var trava = TravasUrl[(uint)StringComparer.Ordinal.GetHashCode(url) % (uint)TravasUrl.Length];
+        await trava.WaitAsync(tokenCancelamento);
+        try
+        {
+            if (TentarObterDoCache(url, out valorCache)) return valorCache;
+            await LimiteConsultas.WaitAsync(tokenCancelamento);
+            try
+            {
+                var geracao = Interlocked.Read(ref _geracaoCache);
+                var valor = await ObterComRepeticaoAsync(url, tokenCancelamento);
+                if (geracao == Interlocked.Read(ref _geracaoCache)) GuardarNoCache(url, valor);
+                return valor;
+            }
+            finally { LimiteConsultas.Release(); }
+        }
+        finally { trava.Release(); }
     }
 
     private string MontarUrl(string caminho, string? parametrosConsulta)
@@ -110,6 +136,13 @@ public sealed class FonteDadosFirebase : IFonteDadosFirebase
     private void GuardarNoCache(string url, JsonElement? valor)
     {
         if (_opcoes.CacheDurationSeconds <= 0) return;
+
+        var agora = DateTimeOffset.UtcNow;
+        foreach (var entrada in EntradasCache)
+            if (entrada.Value.ExpiraEm <= agora) EntradasCache.TryRemove(entrada.Key, out _);
+        // Limita historicos de URLs nunca revisitadas, inclusive em processos de longa duracao.
+        foreach (var chave in EntradasCache.OrderBy(item => item.Value.ExpiraEm).Take(Math.Max(0, EntradasCache.Count - 255)).Select(item => item.Key))
+            EntradasCache.TryRemove(chave, out _);
 
         EntradasCache[url] = new EntradaCache(
             valor,

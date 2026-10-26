@@ -5,15 +5,10 @@ namespace EstacaoClimatica.Tests;
 
 public sealed class TestesParidadeOriginalAoVivo
 {
-    [Fact]
+    [ParidadeAoVivo]
     [Trait("Category", "LiveParity")]
     public async Task ProjetosDevemManterParidadeObservavelEm03DeJunhoDe2026()
     {
-        if (!string.Equals(Environment.GetEnvironmentVariable("RUN_LIVE_PARITY"), "1", StringComparison.Ordinal))
-        {
-            return;
-        }
-
         var urlOriginal = Environment.GetEnvironmentVariable("ORIGINAL_WEB_URL") ?? "http://127.0.0.1:8086/";
         var urlDotnet = Environment.GetEnvironmentVariable("DOTNET_WEB_URL") ?? "http://127.0.0.1:5082/";
         var pastaEvidencias = Environment.GetEnvironmentVariable("LIVE_PARITY_OUTPUT")
@@ -128,6 +123,7 @@ public sealed class TestesParidadeOriginalAoVivo
     {
         try
         {
+            await pagina.Locator("[data-tab-target='Tab1']").ClickAsync();
             await pagina.WaitForSelectorAsync("#statsSala .stats-card", new() { State = WaitForSelectorState.Attached, Timeout = 45_000 });
         }
         catch (TimeoutException erro)

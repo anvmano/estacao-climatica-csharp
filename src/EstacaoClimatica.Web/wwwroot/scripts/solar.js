@@ -9,13 +9,13 @@ function renderizarHistoricoSolar(solar) {
     const canvas = document.getElementById('plotSunriseSunset');
     if (!canvas || !cartao) return;
     const id = canvas.id;
-    if (graficosInstancias[id]) graficosInstancias[id].destroy();
     limparMensagemGrafico(cartao);
     garantirCartaoComZoom(cartao);
 
     const seriesClimaticas = [solar.sunHistoryDawn, solar.sunHistorySunrise, solar.sunHistorySunset, solar.sunHistoryDusk];
     const possuiPontos = seriesClimaticas.some(item => item.points.some(ponto => Number.isFinite(ponto.value)));
     if (!possuiPontos) {
+        graficosInstancias[id]?.destroy();
         delete graficosInstancias[id];
         renderizarMensagemGrafico(cartao, 'Sem histórico solar recente.');
         return;
@@ -33,7 +33,7 @@ function renderizarHistoricoSolar(solar) {
     const porDoSol = remapear(solar.sunHistorySunset.points, 61200, 75600, 17, 21);
     const anoitecer = remapear(solar.sunHistoryDusk.points, 61200, 75600, 17, 21);
 
-    const grafico = new Chart(canvas.getContext('2d'), {
+    const grafico = criarOuAtualizarGrafico(canvas.getContext('2d'), {
         type: 'line',
         data: {
             labels: solar.sunHistorySunrise.points.map(ponto => ponto.label),
@@ -144,11 +144,11 @@ function criarGraficoSolarDia(dia) {
     const chipDuracao = document.getElementById('solarDayDuration');
     if (!canvas || !cartao) return;
     const id = canvas.id;
-    if (graficosInstancias[id]) graficosInstancias[id].destroy();
     limparMensagemGrafico(cartao);
     garantirCartaoComZoom(cartao);
 
     if (!dia) {
+        graficosInstancias[id]?.destroy();
         if (chipDuracao) chipDuracao.hidden = true;
         delete graficosInstancias[id];
         renderizarMensagemGrafico(cartao, `Sem dados suficientes para o ciclo solar em ${dataSelecionada.replaceAll('-', '/')}.`);
@@ -168,7 +168,7 @@ function criarGraficoSolarDia(dia) {
         { x: 24, y: 0 }
     ];
 
-    const grafico = new Chart(canvas.getContext('2d'), {
+    const grafico = criarOuAtualizarGrafico(canvas.getContext('2d'), {
         type: 'line',
         data: {
             datasets: [{
@@ -200,6 +200,7 @@ function criarGraficoSolarDia(dia) {
 
     grafico.$solarDayTimes = dia;
     grafico.$zoomKind = 'solarToday';
+    grafico.update('none');
     graficosInstancias[id] = grafico;
 }
 

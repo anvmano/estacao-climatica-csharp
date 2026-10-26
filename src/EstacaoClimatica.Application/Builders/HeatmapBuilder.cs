@@ -26,7 +26,7 @@ internal static class MontadorMapaCalor
             .ToList();
 
         // Três leituras complementares: calendário mensal, intensidade por hora do dia e padrão semanal.
-        var selecionada = DataFirebase.InterpretarDataFirebase(dataSelecionada) ?? DateTime.Today;
+        var selecionada = DataFirebase.InterpretarDataFirebase(dataSelecionada) ?? RelogioClimatico.Hoje;
         var mensal = MontarMensal(registros, selecionada);
         var porHora = MontarPorHora(registros, dataSelecionada);
         var semanal = MontarSemanal(registros, selecionada);

@@ -1,4 +1,21 @@
 
+function criarOuAtualizarGrafico(contexto, configuracao) {
+    const canvas = contexto.canvas;
+    const anterior = Chart.getChart(canvas);
+    if (!anterior || anterior.config.type !== configuracao.type) {
+        anterior?.destroy();
+        return new Chart(contexto, configuracao);
+    }
+    const visibilidade = new Map(anterior.data.datasets.map((serie, indice) => [serie.label, anterior.isDatasetVisible(indice)]));
+    anterior.data = configuracao.data;
+    anterior.options = configuracao.options;
+    anterior.data.datasets.forEach((serie, indice) => {
+        if (visibilidade.has(serie.label)) anterior.setDatasetVisibility(indice, visibilidade.get(serie.label));
+    });
+    anterior.update('none');
+    return anterior;
+}
+
 function renderizarMensagemGrafico(cartaoOuId, mensagem, tipo = 'empty') {
     const elementoDom = typeof cartaoOuId === 'string' ? document.getElementById(cartaoOuId) : cartaoOuId;
     if (!elementoDom) return;

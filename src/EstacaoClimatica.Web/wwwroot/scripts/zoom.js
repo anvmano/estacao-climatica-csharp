@@ -1,5 +1,6 @@
 
 let disparadorZoom = null;
+let sequenciaZoom = 0;
 
 function ehDispositivoToque() {
     return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
@@ -64,8 +65,12 @@ function conterFocoNoDialogo(evento, dialogo) {
     }
 }
 
-function tratarAmpliacao(cartao, disparador = document.activeElement) {
+async function tratarAmpliacao(cartao, disparador = document.activeElement) {
     fecharAmpliacao({ restaurarFoco: false });
+    const sequencia = sequenciaZoom;
+    try { await window.RecursosClimaticos.carregarCssZoom(); }
+    catch (erro) { console.warn(erro.message); return; }
+    if (sequencia !== sequenciaZoom || !cartao.isConnected || cartao.offsetParent === null) return;
 
     const telaGraficoOrigem = cartao.querySelector('canvas');
     if (!telaGraficoOrigem) return;
@@ -136,6 +141,10 @@ function tratarAmpliacao(cartao, disparador = document.activeElement) {
     graficoAmpliado.$modoChuvaFixo = graficoOrigem.$modoChuvaFixo;
     graficoAmpliado.$modoChuvaMovel = graficoOrigem.$modoChuvaMovel;
     graficoAmpliado.$janelaChuva = graficoOrigem.$janelaChuva;
+    graficoAmpliado.$indiceAgora = graficoOrigem.$indiceAgora;
+    graficoAmpliado.$horariosAtivos = graficoOrigem.$horariosAtivos;
+    graficoAmpliado.$tiposAtivos = graficoOrigem.$tiposAtivos;
+    graficoAmpliado.$visualizacoesChuva = graficoOrigem.$visualizacoesChuva;
     graficoAmpliado.$chavesSincronizacao = [...(graficoOrigem.$chavesSincronizacao || [])];
     if (graficoOrigem.$solarDayTimes) graficoAmpliado.$solarDayTimes = graficoOrigem.$solarDayTimes;
     if (graficoOrigem.$faixaConforto) {
@@ -151,6 +160,7 @@ function tratarAmpliacao(cartao, disparador = document.activeElement) {
 }
 
 function fecharAmpliacao({ restaurarFoco = true } = {}) {
+    sequenciaZoom++;
     if (!sobreposicaoZoom) return;
     const disparadorAnterior = disparadorZoom;
     if (sobreposicaoZoom._chart) sobreposicaoZoom._chart.destroy();

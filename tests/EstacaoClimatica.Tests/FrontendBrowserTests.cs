@@ -8,7 +8,7 @@ using Microsoft.Playwright;
 
 namespace EstacaoClimatica.Tests;
 
-public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInterfaceNavegador>
+public sealed partial class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInterfaceNavegador>
 {
     private static readonly SemaphoreSlim TravaNavegador = new(1, 1);
     private static IPlaywright? playwrightCompartilhado;
@@ -47,6 +47,10 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.Equal("Duração do dia: 11h18", await pagina.Locator("#solarDayDuration").InnerTextAsync());
         Assert.Equal(1, await pagina.Locator("#seasonIndicator").CountAsync());
         Assert.Equal(1, await pagina.Locator("#moonIndicator").CountAsync());
+        Assert.Equal(0, await pagina.Locator("#statsSala .stats-card").CountAsync());
+        await pagina.Locator("#tabAquario").ClickAsync();
+        await pagina.Locator("#tabSala").ClickAsync();
+        await pagina.Locator("#Tab1 .collapsible-trigger").First.ClickAsync();
         await pagina.WaitForSelectorAsync("#statsSala .stats-card", new() { State = WaitForSelectorState.Attached, Timeout = 15_000 });
         await pagina.WaitForSelectorAsync("#chartsSala .chart-card", new() { State = WaitForSelectorState.Attached, Timeout = 15_000 });
         await pagina.WaitForSelectorAsync("#dataSala table", new() { State = WaitForSelectorState.Attached, Timeout = 15_000 });
@@ -193,7 +197,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.WaitForSelectorAsync("#aiChat", new() { State = WaitForSelectorState.Visible, Timeout = 15_000 });
         var alternador = pagina.Locator("#aiChatToggle");
         await alternador.ClickAsync();
-
+        await pagina.WaitForSelectorAsync("#aiChatToggle[aria-expanded='true']");
         Assert.Equal("true", await alternador.GetAttributeAsync("aria-expanded"));
         await pagina.WaitForSelectorAsync("#aiChat.is-open #aiChatPanel", new() { State = WaitForSelectorState.Visible });
         Assert.False(await pagina.Locator("#aiChatPanel").IsHiddenAsync());
@@ -296,6 +300,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await botaoZoomPublico.ScrollIntoViewIfNeededAsync();
         var rolagemPublicaAntes = await pagina.EvaluateAsync<double>("window.scrollY");
         await botaoZoomPublico.ClickAsync();
+        await pagina.WaitForSelectorAsync(".plot-zoom-overlay");
         Assert.Equal("Fechar gráfico ampliado", await pagina.EvaluateAsync<string>("document.activeElement?.getAttribute('aria-label') || ''"));
         Assert.Equal(rolagemPublicaAntes, await pagina.EvaluateAsync<double>("window.scrollY"));
         await pagina.Keyboard.PressAsync("Escape");
@@ -778,7 +783,17 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.Equal(6, gradeLarga.Length);
         Assert.Equal(gradeLarga[4], gradeLarga[5]);
         Assert.True(gradeLarga[3] > gradeLarga[0]);
-        Assert.True(await pagina.Locator(".public-metric-charts").EvaluateAsync<bool>("el => new Set([...el.children].map(card => Math.round(card.getBoundingClientRect().height))).size === 1"));
+        Assert.True(await pagina.Locator(".public-metric-charts").EvaluateAsync<bool>("""
+            el => {
+                const alturasPorLinha = new Map();
+                return [...el.children].every(card => {
+                    const caixa = card.getBoundingClientRect();
+                    const linha = Math.round(caixa.top), altura = Math.round(caixa.height);
+                    if (!alturasPorLinha.has(linha)) alturasPorLinha.set(linha, altura);
+                    return alturasPorLinha.get(linha) === altura;
+                });
+            }
+            """));
         Assert.Equal(3, await pagina.Locator(".public-forecast-charts").EvaluateAsync<int>("el => getComputedStyle(el).gridTemplateColumns.split(' ').length"));
 
         await pagina.Locator("[data-forecast-index='7']").FocusAsync();
@@ -826,14 +841,14 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.GetByRole(AriaRole.Button, new() { Name = "Buscar" }).ClickAsync();
         await pagina.WaitForSelectorAsync("[data-retry-forecast]", new() { State = WaitForSelectorState.Visible });
 
-        Assert.Contains("21.40°C", await pagina.Locator(".public-stats-grid").InnerTextAsync());
+        Assert.Equal("21.40°C", await pagina.Locator(".public-stats-grid .stats-card__value").First.TextContentAsync());
         Assert.True(await pagina.Locator("#publicChartSolar").IsVisibleAsync());
         Assert.Contains("continuam disponíveis", await pagina.Locator(".public-forecast__state").InnerTextAsync());
 
         await pagina.GetByRole(AriaRole.Button, new() { Name = "Tentar novamente" }).ClickAsync();
         await pagina.WaitForSelectorAsync("#publicChartForecastUv", new() { State = WaitForSelectorState.Attached });
         Assert.Equal(2, consultas);
-        Assert.Contains("21.40°C", await pagina.Locator(".public-stats-grid").InnerTextAsync());
+        Assert.Equal("21.40°C", await pagina.Locator(".public-stats-grid .stats-card__value").First.TextContentAsync());
     }
 
     [Theory]
@@ -854,7 +869,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.GotoAsync(_servidor.UrlBase);
         await pagina.GetByRole(AriaRole.Textbox, new() { Name = "CEP" }).FillAsync("01001000");
         await pagina.GetByRole(AriaRole.Button, new() { Name = "Buscar" }).ClickAsync();
-        await pagina.WaitForFunctionAsync("() => !!Chart.getChart('publicChartRainProbability')");
+        await pagina.WaitForFunctionAsync("() => !!window.Chart?.getChart('publicChartRainProbability')");
         Assert.Equal(6, await pagina.Locator(".public-metric-charts canvas").CountAsync());
         Assert.Equal(0, await pagina.Locator("#publicResults .rain-chart-toggle").CountAsync());
         Assert.True(await pagina.EvaluateAsync<bool>("""
@@ -928,7 +943,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.GotoAsync(_servidor.UrlBase);
         await pagina.GetByRole(AriaRole.Textbox, new() { Name = "CEP" }).FillAsync("01001000");
         await pagina.GetByRole(AriaRole.Button, new() { Name = "Buscar" }).ClickAsync();
-        await pagina.WaitForFunctionAsync("() => !!Chart.getChart('publicChartRainProbability')");
+        await pagina.WaitForFunctionAsync("() => !!window.Chart?.getChart('publicChartRainProbability')");
         Assert.True(await pagina.EvaluateAsync<bool>("""
             () => {
                 const grafico = Chart.getChart('publicChartRainProbability');
@@ -947,10 +962,10 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
                     && grafico.options.scales.yProbabilidade.position === 'left'
                     && grafico.options.scales.yProbabilidade.min === 0 && grafico.options.scales.yProbabilidade.max === 100
                     && grafico.options.plugins.legend.display && grafico.isDatasetVisible(0) && grafico.isDatasetVisible(1)
-                    && filtro({ raw: 44, dataset: medido, dataIndex: 24 })
-                    && !filtro({ raw: 44, dataset: previsto, dataIndex: 24 })
-                    && filtro({ raw: 45, dataset: previsto, dataIndex: 25 })
-                    && !filtro({ raw: null, dataset: medido, dataIndex: 5 });
+                    && filtro({ chart: grafico, raw: 44, dataset: medido, dataIndex: 24 })
+                    && !filtro({ chart: grafico, raw: 44, dataset: previsto, dataIndex: 24 })
+                    && filtro({ chart: grafico, raw: 45, dataset: previsto, dataIndex: 25 })
+                    && !filtro({ chart: grafico, raw: null, dataset: medido, dataIndex: 5 });
             }
             """));
         var canvas = pagina.Locator("#publicChartRainProbability");
@@ -998,7 +1013,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
                     && zoom.data.datasets[1].borderDash.join() === '6,4'
                     && zoom.options.scales.yProbabilidade.position === 'left'
                     && zoom.options.plugins.legend.display
-                    && !zoom.options.plugins.tooltip.filter({ raw: 44, dataset: zoom.data.datasets[1], dataIndex: 24 });
+                    && !zoom.options.plugins.tooltip.filter({ chart: zoom, raw: 44, dataset: zoom.data.datasets[1], dataIndex: 24 });
             }
             """));
         await pagina.ScreenshotAsync(new() { Path = Path.Combine(pasta, $"zoom-{largura}x{altura}.png") });
@@ -1012,7 +1027,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await using var contexto = await CriarContextoAsync(autorizarInterno: false);
         var pagina = await contexto.NewPageAsync();
         await pagina.GotoAsync(_servidor.UrlBase);
-        await pagina.WaitForFunctionAsync("() => !!window.ClimaChuva && !!window.Chart");
+        await pagina.EvaluateAsync("() => RecursosClimaticos.carregarChart()");
         Assert.True(await pagina.EvaluateAsync<bool>("""
             () => {
                 const canvas = document.createElement('canvas');
@@ -1033,7 +1048,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
                     const preservado = combinado.data.datasets.map(serie => serie.label).join()
                         === 'Precipitação observada,Precipitação prevista,Chance de chuva'
                         && combinado.options.scales.yProbabilidade.position === 'right'
-                        && combinado.data.datasets[2].data[1] === null
+                        && combinado.data.datasets[2].data[1] === atual
                         && combinado.data.datasets[2].data[2] === futuro;
                     combinado.destroy();
                     if (!preservado) return false;
@@ -1062,8 +1077,8 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.GotoAsync(_servidor.UrlBase);
         await pagina.GetByRole(AriaRole.Textbox, new() { Name = "CEP" }).FillAsync("01001000");
         await pagina.GetByRole(AriaRole.Button, new() { Name = "Buscar" }).ClickAsync();
-        await pagina.WaitForFunctionAsync("id => !!Chart.getChart(id)", disponivel);
-        Assert.False(await pagina.EvaluateAsync<bool>("id => !!Chart.getChart(id)", vazio));
+        await pagina.WaitForFunctionAsync("id => !!window.Chart?.getChart(id)", disponivel);
+        Assert.False(await pagina.EvaluateAsync<bool>("id => !!window.Chart?.getChart(id)", vazio));
         Assert.Contains($"Sem dados de {rotulo}", await pagina.Locator(".public-metric-charts").InnerTextAsync());
         Assert.Equal("--", await pagina.Locator(".public-stats-grid .stats-card__value").First.InnerTextAsync());
         Assert.Equal("--", await pagina.Locator(".public-card--aqi .stats-card__value").InnerTextAsync());
@@ -1152,6 +1167,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.Equal(0, consultasPrivadas);
         Assert.True(await paginaPrivada.Locator("#chart-container-rain").IsVisibleAsync());
         Assert.Equal(0, await paginaPrivada.Locator("#plotRain").EvaluateAsync<double>("el => el.getBoundingClientRect().height"));
+        await paginaPrivada.EvaluateAsync("() => RecursosClimaticos.carregarRelatorio()");
         Assert.Null(await paginaPrivada.EvaluateAsync<object?>("() => montarClimaExternoJson()"));
         Assert.Contains("Sensores internos", await paginaPrivada.Locator("#environmentInsights").InnerTextAsync());
         await paginaPrivada.Locator("#environmentLocationButton").ClickAsync();
@@ -1317,6 +1333,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.Equal("true", await gatilho.GetAttributeAsync("aria-expanded"));
 
         await pagina.Locator("#chart-container-temp-sala .chart-zoom-button").ClickAsync();
+        await pagina.WaitForSelectorAsync(".plot-zoom-overlay");
         Assert.True(await pagina.Locator(".plot-zoom-overlay").IsVisibleAsync());
         await pagina.Keyboard.PressAsync("Escape");
         Assert.Equal(0, await pagina.Locator(".plot-zoom-overlay").CountAsync());
@@ -1390,6 +1407,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.SetViewportSizeAsync(390, 844);
         await pagina.GotoAsync(_servidor.UrlBase);
 
+        await pagina.EvaluateAsync("() => RecursosClimaticos.carregarChart()");
         var estadoInicial = await pagina.EvaluateAsync<JsonElement>("""
             () => {
                 const recipiente = document.createElement('div');
@@ -1475,6 +1493,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.True(tablet.GetProperty("alturaMinima").GetDouble() >= 44);
 
         await pagina.SetViewportSizeAsync(390, 844);
+        await pagina.EvaluateAsync("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
         await pagina.EvaluateAsync("window.scrollTo(0, 700)");
         await pagina.WaitForFunctionAsync("() => document.querySelector('.app-header').classList.contains('is-hidden-on-scroll')");
         await pagina.EvaluateAsync("window.scrollTo(0, 450)");
@@ -1485,6 +1504,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.False(await pagina.Locator(".app-header").EvaluateAsync<bool>("el => el.classList.contains('is-hidden-on-scroll')"));
 
         await pagina.Locator("#aiChatToggle").ClickAsync();
+        await pagina.WaitForFunctionAsync("() => document.getElementById('aiChatToggle').getAttribute('aria-expanded') === 'true'");
         var chat = await pagina.Locator("#aiChatPanel").EvaluateAsync<JsonElement>("""
             el => {
                 const caixa = el.getBoundingClientRect();
@@ -1506,7 +1526,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.SetViewportSizeAsync(390, 844);
         await pagina.GotoAsync(_servidor.UrlBase);
         await pagina.WaitForSelectorAsync("#statsEstacao .stats-card", new() { State = WaitForSelectorState.Attached, Timeout = 15_000 });
-        await pagina.WaitForFunctionAsync("() => Boolean(Chart.getChart('plotSolarToday'))");
+        await pagina.WaitForFunctionAsync("() => Boolean(window.Chart?.getChart('plotSolarToday'))");
 
         var medidas = await pagina.EvaluateAsync<JsonElement>("""
             () => {
@@ -1571,7 +1591,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
 
         await pagina.Locator("#tabSala").ClickAsync();
         var mapa = pagina.Locator("#weeklyHeatmapSala");
-        await mapa.EvaluateAsync("el => el.closest('.collapsible-section')?.classList.remove('is-collapsed')");
+        await pagina.Locator("#Tab1 .collapsible-trigger").First.ClickAsync();
         await mapa.EvaluateAsync("el => { el.scrollLeft = el.scrollWidth; }");
         var estadoMapa = await mapa.EvaluateAsync<JsonElement>("""
             el => {
@@ -1645,6 +1665,9 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.Locator("#selectedDate").FillAsync("2026-06-03");
         await pagina.Locator("#selectedDate").DispatchEventAsync("change");
         await pagina.WaitForFunctionAsync("() => dataSelecionada === '03-06-2026'");
+        await pagina.Locator("#tabQuarto").ClickAsync();
+        await pagina.Locator("#tabAquario").ClickAsync();
+        await pagina.Locator("#tabSala").ClickAsync();
         await pagina.WaitForSelectorAsync("#dataSala >> text=Sem registros da sala em 03/06/2026.", new() { State = WaitForSelectorState.Attached });
 
         Assert.Equal("Sem registros da sala em 03/06/2026.", (await pagina.Locator("#dataSala").InnerTextAsync()).Trim());
@@ -1790,6 +1813,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         Assert.Equal("Exportar PDF", await pagina.Locator("#btnExportData").InnerTextAsync());
 
         await pagina.Locator("#aiChatToggle").ClickAsync();
+        await pagina.WaitForSelectorAsync("#aiChatToggle[aria-expanded='true']");
         Assert.Equal("true", await pagina.Locator("#aiChatToggle").GetAttributeAsync("aria-expanded"));
         await pagina.WaitForFunctionAsync("() => document.activeElement?.id === 'aiChatInput'");
         Assert.Equal("aiChatInput", await pagina.EvaluateAsync<string>("() => document.activeElement?.id"));
@@ -1910,7 +1934,8 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.SetViewportSizeAsync(390, 844);
 
         Assert.True(await pagina.Locator("#publicApp").EvaluateAsync<bool>("el => el.classList.contains('has-results')"));
-        Assert.True(await pagina.Locator(".public-hero").IsHiddenAsync());
+        Assert.True(await pagina.Locator(".public-hero").IsVisibleAsync());
+        Assert.True(await pagina.Locator(".public-hero__panel").IsHiddenAsync());
         Assert.Equal(2, await pagina.Locator(".public-stats-grid").EvaluateAsync<int>("el => getComputedStyle(el).gridTemplateColumns.split(' ').length"));
         Assert.Equal("1 / -1", await pagina.Locator(".public-card--aqi").EvaluateAsync<string>("el => getComputedStyle(el).gridColumn"));
         Assert.Equal("x mandatory", await pagina.Locator(".public-metric-charts").EvaluateAsync<string>("el => getComputedStyle(el).scrollSnapType"));
@@ -1941,6 +1966,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await pagina.GotoAsync(_servidor.UrlBase);
         await pagina.WaitForSelectorAsync("#statsEstacao .stats-card", new() { State = WaitForSelectorState.Attached, Timeout = 15_000 });
 
+        await pagina.EvaluateAsync("() => RecursosClimaticos.carregarRelatorio()");
         var contrato = await pagina.EvaluateAsync<string>(
             @"() => {
                 const montar = aba => {
@@ -2023,6 +2049,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await using var contexto = await CriarContextoAsync();
         var pagina = await CriarPaginaComDashboardMockadoAsync(contexto, []);
         await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.EvaluateAsync("() => RecursosClimaticos.carregarRelatorio()");
 
         var resultado = await pagina.EvaluateAsync<string>("""
             () => {
@@ -2056,6 +2083,7 @@ public sealed class TestesInterfaceNavegador : IClassFixture<AmbienteTestesInter
         await using var contexto = await CriarContextoAsync();
         var pagina = await CriarPaginaComDashboardMockadoAsync(contexto, []);
         await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.EvaluateAsync("() => RecursosClimaticos.carregarRelatorio()");
 
         var resultado = await pagina.EvaluateAsync<string>("""
             async () => {
@@ -2583,6 +2611,7 @@ public sealed class ApiAuthorizationTests : IClassFixture<AmbienteTestesInterfac
         {
             "api/internal-access",
             "api/dashboard?date=03-06-2026",
+            "api/dashboard/updates",
             "api/environments",
             "api/environments/sala/latest",
             "api/environments/sala/measurements?from=03-06-2026&to=03-06-2026",

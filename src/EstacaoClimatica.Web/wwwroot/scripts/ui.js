@@ -465,6 +465,7 @@ function abrirAba(nomeAba, acionador) {
         botaoSelecionado.setAttribute('tabindex', '0');
     }
     localStorage.setItem('activeTab', nomeAba);
+    window.renderizarAbaPendente?.();
 }
 
 function configurarControlesData() {
@@ -494,6 +495,7 @@ function configurarSecoesRecolhaveis() {
         acionador.addEventListener('click', () => {
             const recolhido = secao.classList.toggle('is-collapsed');
             acionador.setAttribute('aria-expanded', String(!recolhido));
+            if (!recolhido) window.renderizarAbaPendente?.();
         });
     });
 }

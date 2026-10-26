@@ -35,7 +35,7 @@ public sealed class TestesMontadorSeriesGraficos
     }
 
     [Fact]
-    public void Montar_DeveUsarInstanteNuloParaDataOuHoraInvalida()
+    public void Montar_DeveDescartarDataOuHoraInvalida()
     {
         var dados = CriarJson("""
             {
@@ -46,8 +46,7 @@ public sealed class TestesMontadorSeriesGraficos
 
         var serie = MontadorSeriesGraficos.Montar(dados, Grafico);
 
-        Assert.Equal(2, serie.Points.Count);
-        Assert.All(serie.Points, ponto => Assert.Null(ponto.Instante));
+        Assert.Empty(serie.Points);
     }
 
     private static JsonElement CriarJson(string json) => JsonDocument.Parse(json).RootElement.Clone();

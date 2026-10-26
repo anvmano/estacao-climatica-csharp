@@ -17,7 +17,7 @@ internal static class LeitorRegistrosFirebase
         if (dados is null || dados.Value.ValueKind != JsonValueKind.Object) return null;
 
         // Filtro aplicado localmente porque o Firebase REST retorna o caminho inteiro configurado.
-        var limite = DateTime.Today.AddDays(-dias).Date;
+        var limite = RelogioClimatico.Hoje.AddDays(-dias).Date;
         var filtrado = EnumerarDatas(dados)
             .Where(par => DataFirebase.InterpretarDataFirebase(par.Date) is { } data && data >= limite)
             .ToDictionary(par => par.Date, par => par.DateData.Clone());
@@ -105,11 +105,13 @@ internal static class LeitorRegistrosFirebase
 
         foreach (var (data, dadosData) in datas)
         {
+            if (DataFirebase.InterpretarDataFirebase(data) is null) continue;
             var horarios = dadosData.EnumerateObject().Where(propriedade => propriedade.Value.ValueKind == JsonValueKind.Object);
             horarios = maisRecentesPrimeiro ? horarios.OrderByDescending(propriedade => ChaveOrdenacaoHora(propriedade.Name)) : horarios.OrderBy(propriedade => ChaveOrdenacaoHora(propriedade.Name));
 
             foreach (var propriedadeHora in horarios)
             {
+                if (ConverterHora(propriedadeHora.Name) is null) continue;
                 var itens = propriedadeHora.Value.EnumerateObject().Where(propriedade => propriedade.Value.ValueKind == JsonValueKind.Object);
                 itens = maisRecentesPrimeiro ? itens.OrderByDescending(propriedade => propriedade.Name) : itens.OrderBy(propriedade => propriedade.Name);
 
@@ -132,12 +134,22 @@ internal static class LeitorRegistrosFirebase
 
     public static (int Hour, int Minute, int? Second)? ConverterHora(string horario)
     {
-        // Horários do Firebase aparecem como "HH", "HH-MM" ou "HH-MM-SS"; ausências viram zero.
-        var partes = horario.Split(new[] { '-', ':' }, StringSplitOptions.RemoveEmptyEntries);
-        if (partes.Length == 0 || !int.TryParse(partes[0], out var hora)) return null;
-        var minuto = partes.Length > 1 && int.TryParse(partes[1], out var minutoConvertido) ? minutoConvertido : 0;
-        var segundo = partes.Length > 2 && int.TryParse(partes[2], out var segundoConvertido) ? segundoConvertido : (int?)null;
+        var partes = horario.Split('-', ':');
+        if (partes.Length is < 1 or > 3 || !int.TryParse(partes[0], out var hora) || hora is < 0 or > 23) return null;
+        var minuto = 0;
+        var segundoConvertido = 0;
+        if (partes.Length > 1 && (!int.TryParse(partes[1], out minuto) || minuto is < 0 or > 59)) return null;
+        if (partes.Length > 2 && (!int.TryParse(partes[2], out segundoConvertido) || segundoConvertido is < 0 or > 59)) return null;
+        int? segundo = partes.Length > 2 ? segundoConvertido : null;
         return (hora, minuto, segundo);
+    }
+
+    public static bool LeituraNoPassadoValido(string data, string horario, DateTime agora)
+    {
+        var dia = DataFirebase.InterpretarDataFirebase(data);
+        var hora = ConverterHora(horario);
+        return dia is not null && hora is not null
+            && dia.Value.AddHours(hora.Value.Hour).AddMinutes(hora.Value.Minute).AddSeconds(hora.Value.Second ?? 0) <= agora;
     }
 
     private static JsonElement EnvolverData(string data, JsonElement dadosData)

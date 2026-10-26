@@ -16,7 +16,7 @@
 
     .header-status {
         --header-status-chip-width: auto;
-        --header-status-chip-height: 44px;
+        --header-status-chip-height: 56px;
         width: 100%;
         flex: 1 1 auto;
         justify-content: space-between;
@@ -31,18 +31,6 @@
         gap: 4px;
     }
 
-    .aqi-indicator__prefix {
-        position: absolute;
-        z-index: 2;
-        top: 7px;
-        left: 7px;
-        display: block;
-        color: #e2e8f0;
-        font-size: 0.55rem;
-        font-weight: 850;
-        line-height: 1;
-    }
-
     .aqi-indicator__value {
         position: absolute;
         z-index: 2;
@@ -51,17 +39,29 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 25px;
-        min-height: 17px;
+        min-width: 29px;
+        min-height: 20px;
         padding: 0 4px;
         border: 1px solid color-mix(in srgb, var(--aqi-color), transparent 48%);
         border-radius: 999px;
         background: rgba(8, 15, 30, 0.88);
         color: #f8fafc;
         box-shadow: 0 2px 8px rgba(2, 6, 23, 0.38);
-        font-size: 0.72rem;
+        font-size: 0.87rem;
         font-weight: 850;
         font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+
+    .aqi-indicator__prefix {
+        position: absolute;
+        z-index: 2;
+        top: 7px;
+        left: 7px;
+        display: block;
+        color: #e2e8f0;
+        font-size: 0.67rem;
+        font-weight: 850;
         line-height: 1;
     }
 
@@ -134,17 +134,43 @@
     .astro-indicator__track {
         left: 10px;
         right: 10px;
-        bottom: 4px;
+        bottom: 14px;
         height: 28px;
     }
 
     .astro-indicator__orb {
         width: 13px;
         height: 13px;
+        bottom: calc(var(--astro-y) + 10px);
     }
+
+    .season-indicator::after,
+    .astro-indicator::after,
+    .moon-indicator::after {
+        position: absolute;
+        right: 0;
+        bottom: 1px;
+        left: 0;
+        color: var(--text-primary);
+        font-size: 0.72rem;
+        font-weight: 700;
+        line-height: 1.1;
+        text-align: center;
+    }
+
+    .season-indicator::after { content: "Estação"; }
+    .astro-indicator::after { content: "Sol"; }
+    .moon-indicator::after { content: "Lua"; }
 
     .header-time {
         display: none;
+    }
+
+    .auth-logout-button {
+        flex: 0 0 auto;
+        min-width: 46px;
+        padding: 0 9px;
+        font-size: 0.76rem;
     }
 
     .tab-toolbar {
@@ -252,9 +278,9 @@
     .toolbar-button {
         width: 100%;
         min-width: 0;
+        min-height: 44px;
         padding-inline: 0.65rem;
         white-space: nowrap;
-        min-height: 44px;
     }
 
     .export-format-toggle,
@@ -265,8 +291,6 @@
     .export-format-toggle {
         grid-column: 1;
     }
-
-    .export-format-toggle label { min-height: 44px; }
 
     .toolbar-button--export {
         grid-column: 2;
@@ -284,7 +308,9 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    #statsEstacao { min-height: 0; }
+    #statsEstacao {
+        min-height: 0;
+    }
 
     .season-timeline__segment {
         font-size: 0.62rem;
@@ -319,6 +345,41 @@
         display: none;
     }
 
+    .public-moon {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        grid-template-areas:
+            "scene content"
+            "details details";
+        align-items: center;
+        gap: 0.35rem 0.65rem;
+    }
+
+    .public-moon .moon-summary__scene { grid-area: scene; }
+    .public-moon .moon-summary__content { grid-area: content; }
+    .public-moon .moon-summary__details {
+        grid-area: details;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        margin: 0.2rem 0 0;
+    }
+
+    .public-moon .moon-summary__details div {
+        grid-template-columns: minmax(0, 1fr);
+        justify-content: stretch;
+        min-width: 0;
+    }
+
+    .public-moon .moon-summary__details dt,
+    .public-moon .moon-summary__details dd {
+        min-width: 0;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        text-align: left;
+    }
+
     .advanced-grid {
         grid-template-columns: 1fr;
     }
@@ -329,11 +390,14 @@
 
     .plot { height: 200px !important; }
 
-    #plotRain,
-    #publicChartRain { height: 200px !important; }
-
     .chart-card--wide .plot {
         height: 220px !important;
+    }
+
+    #plotRain,
+    #publicChartRain,
+    #publicChartRainProbability {
+        height: 200px !important;
     }
 
     .chart-zoom-button {
@@ -370,25 +434,25 @@
 
     .ai-chat {
         right: 12px;
-        bottom: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom));
     }
 
     .ai-chat__toggle {
         width: 48px;
         height: 48px;
         min-height: 48px;
-        padding: 0;
         justify-content: center;
-        border-radius: 999px;
+        padding: 0;
+        border-radius: 50%;
     }
 
-    .ai-chat__toggle > span:last-child { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-
-    .ai-chat__panel {
-        right: -4px;
-        bottom: 52px;
-        width: calc(100vw - 24px);
-        max-height: calc(100vh - 100px);
+    .ai-chat__toggle > span:last-child {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
     }
 
     .ai-chat__quick-actions {
@@ -410,23 +474,95 @@
 }
 
 @media (min-width: 360px) and (max-width: 640px) {
-    #statsEstacao { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #statsEstacao {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #statsEstacao .stats-card {
+        min-height: 116px;
+        padding: 0.8rem;
+    }
+}
+
+/* Tablets e janelas intermediarias precisam separar navegacao e acoes,
+   mantendo o restante do dashboard com densidade de desktop. */
+@media (min-width: 641px) and (max-width: 1200px) {
+    .app-body {
+        padding-inline: 1.25rem;
+        padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+    }
+
+    .tab-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 0.65rem;
+        padding-top: 14px;
+    }
+
+    .tab-nav {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        width: 100%;
+        gap: 4px;
+        padding: 3px;
+        border: 1px solid var(--border);
+        border-bottom-color: rgba(56, 189, 248, 0.24);
+        border-radius: 16px 16px 0 0;
+        overflow: visible;
+    }
+
+    .tablink {
+        justify-content: center;
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        padding-inline: 8px;
+    }
+
+    .toolbar {
+        width: 100%;
+        padding-bottom: 10px;
+    }
+
+    .toolbar-group {
+        width: 100%;
+        display: grid;
+        grid-template-columns: auto minmax(150px, 1fr) auto auto auto;
+        justify-content: stretch;
+        gap: 0.5rem;
+    }
+
+    .date-picker,
+    .toolbar-button,
+    .export-format-toggle {
+        min-height: 44px;
+    }
+
 }
 
 @media (min-width: 641px) and (max-width: 960px) {
-    .app-body { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
-    .tab-toolbar { align-items: stretch; flex-direction: column; gap: 0.65rem; }
-    .tab-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; overflow: visible; }
-    .tablink { justify-content: center; width: 100%; min-width: 0; min-height: 44px; }
-    .toolbar { width: 100%; }
-    .toolbar-group { width: 100%; justify-content: flex-end; }
-    .date-picker, .toolbar-button, .export-format-toggle label { min-height: 44px; }
-    .ai-chat__toggle { width: 48px; height: 48px; min-height: 48px; padding: 0; justify-content: center; border-radius: 999px; }
-    .ai-chat__toggle > span:last-child { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-}
+    .ai-chat {
+        right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+    }
 
-@media (max-width: 640px) {
-    .auth-logout-button { flex: 0 0 auto; min-width: 46px; padding: 0 9px; font-size: 0.76rem; }
+    .ai-chat__toggle {
+        width: 48px;
+        height: 48px;
+        min-height: 48px;
+        justify-content: center;
+        padding: 0;
+        border-radius: 50%;
+    }
+
+    .ai-chat__toggle > span:last-child {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
 }
 
 /* Celulares em paisagem podem ter largura maior que o breakpoint mobile,

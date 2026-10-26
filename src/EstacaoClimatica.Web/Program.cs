@@ -1,6 +1,7 @@
 using EstacaoClimatica.Application.Abstractions;
 using EstacaoClimatica.Application.Configuration;
 using EstacaoClimatica.Application.Services;
+using EstacaoClimatica.Application.Utilities;
 using EstacaoClimatica.Infrastructure.AI;
 using EstacaoClimatica.Infrastructure.Authentication;
 using EstacaoClimatica.Infrastructure.External;
@@ -39,6 +40,7 @@ construtor.Services.AddScoped<IServicoAssistenteClimatico, ServicoAssistenteClim
 construtor.Services.AddSingleton<ServicoAnalisesAmbientais>();
 construtor.Services.AddScoped<IRepositorioDadosClimaticos, RepositorioDadosClimaticosFirebase>();
 construtor.Services.AddHttpClient<IFonteDadosFirebase, FonteDadosFirebase>();
+construtor.Services.AddHttpClient<IObservadorAtualizacoesFirebase, ObservadorAtualizacoesFirebase>(cliente => cliente.Timeout = Timeout.InfiniteTimeSpan);
 construtor.Services.AddHttpClient<IClienteGeracaoTexto, ClienteGeracaoTextoGemini>();
 construtor.Services.AddHttpClient<IServicoClimaPublico, ServicoClimaPublico>();
 construtor.Services.AddHttpClient("firebase-auth");
@@ -53,6 +55,21 @@ aplicacao.UseDefaultFiles();
 aplicacao.UseStaticFiles();
 aplicacao.UseRouting();
 aplicacao.UseRateLimiter();
+
+aplicacao.Use(async (contexto, proximo) =>
+{
+    var identificador = contexto.Request.Headers["X-Climate-Timezone"].ToString();
+    if (string.IsNullOrEmpty(identificador)) { await proximo(); return; }
+    TimeZoneInfo fuso;
+    try { fuso = TimeZoneInfo.FindSystemTimeZoneById(identificador); }
+    catch (Exception erro) when (erro is TimeZoneNotFoundException or InvalidTimeZoneException or ArgumentException)
+    {
+        contexto.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await contexto.Response.WriteAsJsonAsync(new { message = "Fuso horario invalido." });
+        return;
+    }
+    using (RelogioClimatico.UsarFuso(fuso)) await proximo();
+});
 
 aplicacao.Use(async (contexto, proximo) =>
 {

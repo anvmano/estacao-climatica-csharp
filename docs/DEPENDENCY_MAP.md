@@ -8,6 +8,12 @@ graph TD
     Browser --> Publico["/api/public-weather/* sem login"]
     Browser --> Auth["Firebase Auth + token autorizado"]
     Auth --> Api["GET /api/dashboard"]
+    Auth --> Atualizacoes["GET /api/dashboard/updates - SSE"]
+    Atualizacoes --> Observador["IObservadorAtualizacoesFirebase / ObservadorAtualizacoesFirebase"]
+    Observador --> Firebase
+    Observador --> Invalidacao["Invalidacao de cache por ramo"]
+    Invalidacao --> FonteDadosFirebase
+    Browser --> Recursos["runtime-loader: Chart, chat, PDF e CSS zoom sob demanda"]
     Auth --> ChatApi["POST /api/chat"]
     Browser --> Health["GET /api/health sem Firebase"]
 
