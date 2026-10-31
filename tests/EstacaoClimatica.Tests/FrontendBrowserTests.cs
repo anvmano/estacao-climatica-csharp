@@ -2783,7 +2783,7 @@ public sealed class AmbienteTestesInterfaceNavegador : IAsyncLifetime
         return ((IPEndPoint)socket.LocalEndpoint).Port;
     }
 
-    private static string LocalizarRaizProjeto()
+    internal static string LocalizarRaizProjeto()
     {
         var diretorio = new DirectoryInfo(AppContext.BaseDirectory);
         while (diretorio is not null && !File.Exists(Path.Combine(diretorio.FullName, "EstacaoClimatica.sln")))

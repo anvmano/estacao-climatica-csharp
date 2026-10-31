@@ -6,6 +6,145 @@ namespace EstacaoClimatica.Tests;
 public sealed partial class TestesInterfaceNavegador
 {
     [Theory]
+    [InlineData(320, 568)]
+    [InlineData(390, 844)]
+    [InlineData(640, 768)]
+    [InlineData(641, 768)]
+    [InlineData(844, 390)]
+    [InlineData(900, 768)]
+    [InlineData(901, 768)]
+    [InlineData(1440, 900)]
+    public async Task Paridade_AqiCompactoDeveRespeitarBreakpointETextosLongos(int largura, int altura)
+    {
+        await using var contexto = await CriarContextoAsync(autorizarInterno: false);
+        await contexto.AddInitScriptAsync("sessionStorage.clear();");
+        var pagina = await contexto.NewPageAsync();
+        await pagina.Clock.SetFixedTimeAsync(new DateTime(2026, 6, 3, 19, 30, 0, DateTimeKind.Utc));
+        await pagina.SetViewportSizeAsync(largura, altura);
+        var erros = new List<string>();
+        pagina.PageError += (_, erro) => erros.Add(erro);
+        var dados = System.Text.Json.Nodes.JsonNode.Parse(CriarPublicWeatherComPrevisaoJson())!;
+        await pagina.RouteAsync("**/api/public-weather/cep/**", rota => rota.FulfillAsync(new()
+        {
+            ContentType = "application/json", Body = dados.ToJsonString()
+        }));
+        var pasta = Path.Combine(AmbienteTestesInterfaceNavegador.LocalizarRaizProjeto(), "outputs", "paridade-2026-10-30", "dotnet");
+        Directory.CreateDirectory(pasta);
+        foreach (int? valor in new int?[] { 42, 125, null })
+        {
+            dados["aqi"]!["valor"] = valor;
+            await pagina.GotoAsync(_servidor.UrlBase);
+            await pagina.Locator("#publicSearchInput").FillAsync("01001000");
+            await pagina.GetByRole(AriaRole.Button, new() { Name = "Buscar", Exact = true }).ClickAsync();
+            await pagina.WaitForFunctionAsync("() => !!window.Chart?.getChart('publicChartForecastUv')");
+            var cartao = pagina.Locator(".public-card--aqi");
+            Assert.Equal(valor?.ToString() ?? "--", await cartao.Locator(".stats-card__value").InnerTextAsync());
+            Assert.Equal(valor == 125 ? "Insalubre para grupos sensíveis" : valor == 42 ? "Boa" : "Indisponível",
+                await cartao.Locator(".stats-card__trend").InnerTextAsync());
+            await cartao.ScreenshotAsync(new() { Path = Path.Combine(pasta, $"aqi-{largura}x{altura}-{valor?.ToString() ?? "ausente"}.png") });
+            var geometria = await cartao.EvaluateAsync<JsonElement>("""
+                el => {
+                    const caixa = el.getBoundingClientRect();
+                    const grade = el.parentElement.getBoundingClientRect();
+                    const filhos = [...el.children].map(filho => filho.getBoundingClientRect());
+                    const dentro = filhos.every((r, i) => r.left >= caixa.left && r.right <= caixa.right + 1
+                        && r.top >= caixa.top && r.bottom <= caixa.bottom + 1
+                        && el.children[i].scrollWidth <= el.children[i].clientWidth + 1);
+                    const semColisao = filhos.every((a, i) => filhos.slice(i + 1).every(b =>
+                        a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1));
+                    return { display: getComputedStyle(el).display, alturaMinima: getComputedStyle(el).minHeight,
+                        largura: caixa.width, larguraGrade: grade.width, dentro, semColisao,
+                        horizontal: filhos.every(r => Math.abs((r.top + r.bottom) / 2 - (filhos[0].top + filhos[0].bottom) / 2) < 2),
+                        semOverflow: document.documentElement.scrollWidth <= innerWidth + 1 };
+                }
+                """);
+            Assert.True(geometria.GetProperty("dentro").GetBoolean(), geometria.ToString());
+            Assert.True(geometria.GetProperty("semColisao").GetBoolean(), geometria.ToString());
+            Assert.True(geometria.GetProperty("semOverflow").GetBoolean(), geometria.ToString());
+            if (largura <= 900)
+            {
+                Assert.Equal("flex", geometria.GetProperty("display").GetString());
+                Assert.Equal("64px", geometria.GetProperty("alturaMinima").GetString());
+                Assert.Equal(geometria.GetProperty("larguraGrade").GetDouble(), geometria.GetProperty("largura").GetDouble(), 1);
+                if (valor == 42) Assert.True(geometria.GetProperty("horizontal").GetBoolean());
+            }
+            else Assert.NotEqual("flex", geometria.GetProperty("display").GetString());
+        }
+        Assert.Empty(erros);
+    }
+
+    [Theory]
+    [InlineData(320, 568)]
+    [InlineData(390, 844)]
+    [InlineData(844, 390)]
+    [InlineData(1440, 900)]
+    public async Task Paridade_MapaPrevisaoDeveManterRotulosOpacosESelecaoDuranteRolagem(int largura, int altura)
+    {
+        await using var contexto = await CriarContextoAsync(autorizarInterno: false, toque: largura < 900);
+        var pagina = await contexto.NewPageAsync();
+        await pagina.Clock.SetFixedTimeAsync(new DateTime(2026, 6, 3, 19, 30, 0, DateTimeKind.Utc));
+        await pagina.SetViewportSizeAsync(largura, altura);
+        var erros = new List<string>();
+        pagina.PageError += (_, erro) => erros.Add(erro);
+        await pagina.RouteAsync("**/api/public-weather/cep/**", rota => rota.FulfillAsync(new()
+        {
+            ContentType = "application/json", Body = CriarPublicWeatherComPrevisaoJson()
+        }));
+        await pagina.GotoAsync(_servidor.UrlBase);
+        await pagina.Locator("#publicSearchInput").FillAsync("01001000");
+        await pagina.GetByRole(AriaRole.Button, new() { Name = "Buscar", Exact = true }).ClickAsync();
+        await pagina.WaitForFunctionAsync("() => !!window.Chart?.getChart('publicChartForecastUv')");
+        await pagina.EvaluateAsync("() => Object.values(Chart.instances).forEach(g => { g.options.animation = false; g.stop(); g.update('none'); })");
+        var mapa = pagina.Locator("#publicForecastMap");
+        var pasta = Path.Combine(AmbienteTestesInterfaceNavegador.LocalizarRaizProjeto(), "outputs", "paridade-2026-10-30", "dotnet");
+        Directory.CreateDirectory(pasta);
+        foreach (var fracao in new[] { 0.0, 0.5, 1.0 })
+        {
+            await mapa.EvaluateAsync("(el, fracao) => el.scrollLeft = (el.scrollWidth - el.clientWidth) * fracao", fracao);
+            await pagina.EvaluateAsync("() => new Promise(resolve => requestAnimationFrame(resolve))");
+            await mapa.ScreenshotAsync(new() { Path = Path.Combine(pasta, $"mapa-{largura}x{altura}-{fracao * 100:0}.png") });
+            Assert.True(await mapa.EvaluateAsync<bool>("""
+                el => {
+                    const rotulos = el.querySelector('.public-forecast-map__labels');
+                    const estilo = getComputedStyle(rotulos);
+                    const caixa = el.getBoundingClientRect(), fixa = rotulos.getBoundingClientRect();
+                    return estilo.position === 'sticky' && estilo.left === '0px' && estilo.zIndex === '2'
+                        && estilo.backgroundColor === 'rgb(23, 32, 51)' && estilo.boxShadow !== 'none'
+                        && fixa.left >= caixa.left && fixa.left <= caixa.left + 14
+                        && document.documentElement.scrollWidth <= innerWidth + 1;
+                }
+                """));
+            var indice = await mapa.EvaluateAsync<int>("""
+                el => {
+                    const fixa = el.querySelector('.public-forecast-map__labels').getBoundingClientRect();
+                    const borda = el.getBoundingClientRect().right;
+                    return [...el.querySelectorAll('[data-forecast-index]')].findIndex(dia => {
+                        const r = dia.getBoundingClientRect(), x = (r.left + r.right) / 2;
+                        return x > fixa.right + 8 && r.right < borda - 3;
+                    });
+                }
+                """);
+            Assert.True(indice >= 0);
+            var dia = mapa.Locator($"[data-forecast-index='{indice}']");
+            if (largura < 900) await dia.TapAsync();
+            else await dia.ClickAsync();
+            Assert.Equal(new[] { indice, indice, indice }, await pagina.EvaluateAsync<int[]>("""
+                () => ['publicChartForecastTemperature', 'publicChartForecastRain', 'publicChartForecastUv']
+                    .map(id => Chart.getChart(id).getActiveElements()[0]?.index ?? -1)
+                """));
+            Assert.True(await dia.EvaluateAsync<bool>("el => el.classList.contains('is-active')"));
+        }
+        await pagina.Mouse.MoveAsync(0, 0);
+        await mapa.Locator("[data-forecast-index='14']").FocusAsync();
+        await pagina.Keyboard.PressAsync("Home");
+        Assert.True(await mapa.Locator("[data-forecast-index='0']").EvaluateAsync<bool>("el => document.activeElement === el && el.classList.contains('is-active')"));
+        await pagina.Keyboard.PressAsync("End");
+        Assert.True(await mapa.Locator("[data-forecast-index='14']").EvaluateAsync<bool>("el => document.activeElement === el && el.classList.contains('is-active')"));
+        Assert.Equal(8, await mapa.Locator(".public-forecast-day--extended").CountAsync());
+        Assert.Empty(erros);
+    }
+
+    [Theory]
     [InlineData(320)]
     [InlineData(390)]
     [InlineData(1440)]
@@ -138,6 +277,8 @@ public sealed partial class TestesInterfaceNavegador
         await using var contexto = await CriarContextoAsync();
         var pagina = await CriarPaginaComDashboardMockadoAsync(contexto, []);
         await pagina.GotoAsync(_servidor.UrlBase);
+        Assert.DoesNotContain("Histórico da data selecionada", await pagina.Locator("#privateApp").TextContentAsync());
+        Assert.DoesNotContain("janela de 24 horas", await pagina.Locator("#privateApp").TextContentAsync());
         await pagina.WaitForSelectorAsync("#statsEstacao .stats-card");
         Assert.Equal(0, await pagina.Locator("#chartsSala canvas").CountAsync());
         await pagina.Locator("#tabSala").ClickAsync();
